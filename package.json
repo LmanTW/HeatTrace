@@ -1,15 +1,17 @@
 {
   "scripts": {
-    "start": "tsx HeatTrace/Main.ts"
+    "start": "tsx Scripts/Test/Main.ts",
+    "startRaw": "tsx HeatTrace/APP.ts",
+    "build": "tsx Scripts/Build/Main.ts"
   },
-
   "dependencies": {
     "wcwidth": "^1.0.1"
   },
-
   "devDependencies": {
     "@types/wcwidth": "^1.0.2",
+    "node-pty": "^1.0.0",
+    "terser": "^5.31.1",
     "tsup": "^8.1.0",
-    "tsx": "^4.15.5"
+    "tsx": "^4.15.6"
   }
 }

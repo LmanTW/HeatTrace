@@ -25,7 +25,7 @@ export default class {
   }
 
   // Load Replays
-  public async loadReplays (replays: string[]): Promise<void> {
+  public async loadReplays (replays: Buffer[]): Promise<void> {
     if (this._state !== 'initialized') throw new Error(`Cannot Load Replays: ${this._state}`)
   }
 }

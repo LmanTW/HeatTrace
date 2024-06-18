@@ -3,8 +3,10 @@ import os from 'os'
 const page: Page = {
   id: 'settings',
 
-  initialize: async (ui) => {
-    const settings = DataManager.getSettings()
+  initialize: async (Page) => {
+    Page.Core.loadData()
+
+    const settings = Page.Core.settings
 
     const resolutions: string[] = ['512x384', '1024x768', '2048x1536', '4096x3072']
     const fps: number[] = [15, 30, 60, 120]
@@ -20,7 +22,7 @@ const page: Page = {
           else if (settings.resolution === '2048x1536') return `Resolution: ${Text.blue('2048x1536 (High)')}`
 
           return `Resolution: ${Text.cyan('4096x3072 (Ultra)')}`
-        }, selected: (_, direction) => {
+        }, selected: (direction) => {
           let currentResolution = resolutions.indexOf(settings.resolution)
 
           if (direction === 'left') {
@@ -41,7 +43,7 @@ const page: Page = {
           else if (settings.fps === 60) return `FPS: ${Text.blue('60 (High)')}`
           
           return `FPS: ${Text.cyan('120 (Ultra)')}`
-        }, selected: (_, direction) => {
+        }, selected: (direction) => {
           let currentFPS = fps.indexOf(settings.fps)
 
           if (direction === 'left') {
@@ -66,7 +68,7 @@ const page: Page = {
           else if (settings.threads >= 2) return `Threads: ${Text.yellow(`${settings.threads} / ${totalThreads} (Low)`)}`
 
           return `Threads: ${Text.red(`${settings.threads} / ${totalThreads} (Potato)`)}`
-        }, selected: (_, direction) => {
+        }, selected: (direction) => {
           if (direction === 'left') {
             settings.threads--
 
@@ -79,9 +81,9 @@ const page: Page = {
         }},
         { name: () => '' },
         { name: () => 'Back', selected: () => {
-          DataManager.saveSettings(settings)
+          Page.Core.saveData()
 
-          ui.switchPage('home') 
+          Page.Core.PageManager.switchPage('home') 
         }, optionAlign: 'center' }
       ], 0, 3, { horizontalAlign: 'center' }),
       new Components.Text(Text.green('Press [Left / Right] to change.'), 0, -1, { horizontalAlign: 'center', verticalAlign: 'bottom' })
@@ -91,6 +93,7 @@ const page: Page = {
 
 export default page
 
-import { Page, Text, Background } from '../UserInterface'
-import { DataManager } from '../Managers/DataManager'
-import Components from '../Components/Components'
+import { Text } from '../../../Tools/Text'
+
+import { Page } from '../../Managers/PageManager'
+import Components from '../Components'

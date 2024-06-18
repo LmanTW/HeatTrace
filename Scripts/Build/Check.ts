@@ -3,11 +3,11 @@ import wcwidth from 'wcwidth'
 import path from 'path'
 import fs from 'fs'
 
-// Check
+// Check The Codebase
 export default () => {
   Log.add(` 🔎 Checking The Codebase\n`)
 
-  let files = getFilesFromImport(path.join(__dirname, '../../HeatTrace'), [])
+  let files = getFilesFromImport(path.resolve(__dirname, '../../HeatTrace/APP.ts'), [])
 
   Log.replace(` 🔎 Checking 0% (0 / ${files.length})`)
 

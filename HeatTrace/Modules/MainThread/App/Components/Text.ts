@@ -1,7 +1,6 @@
-import measureText from '../../Tools/MeasureText'
-import placeText from '../../Tools/PlaceText'
+import { measureText, placeText } from '../../../Tools/Text'
 
-import { Component } from './Main'
+import { Component, ComponentStyle } from './Main'
 
 // Text
 export default class extends Component {
@@ -40,15 +39,22 @@ export default class extends Component {
     let y!: number
 
     if (this._style.horizontalAlign === 'left' || this._style.horizontalAlign === undefined) x = this._x
-    else if (this._style.horizontalAlign === 'center') x = ((width / 2) - (this._width / 2)) + this._x
-    else if (this._style.horizontalAlign === 'right') x = (width - this._width) + this._x
+    else if (this._style.horizontalAlign === 'center') x = Math.round((width / 2) - (this._width / 2)) + this._x
+    else if (this._style.horizontalAlign === 'right') x = Math.round(width - this._width) + this._x
 
     if (this._style.verticalAlign === 'top' || this._style.verticalAlign === undefined) y = this._y
-    else if (this._style.verticalAlign === 'center') y = ((height / 2) - (this._height / 2)) + this._y
-    else if (this._style.verticalAlign === 'bottom') y = (height - this._height) + this._y
+    else if (this._style.verticalAlign === 'center') y = Math.round((height / 2) - (this._height / 2)) + this._y
+    else if (this._style.verticalAlign === 'bottom') y = Math.round(height - this._height) + this._y
 
-    this._content.split('\n').forEach((line, index) => lines[Math.round(y + index)] = placeText(line, Math.round(x)))
+    this._content.split('\n').forEach((line, index) => {
+      const lineY = Math.round(y + index)
+
+      if (lineY >= 0 && lineY <= height) lines[lineY] = placeText(width, lines[lineY], line, x)
+    })
   }
+
+  // Handle Keydown Event
+  public keydown () {}
 
   // Measure The Component
   private _measure (): void {
@@ -65,10 +71,4 @@ export default class extends Component {
     this._width = maxWidth
     this._height = lines.length
   }
-}
-
-// Component Style
-interface ComponentStyle {
-  horizontalAlign?: 'left' | 'center' | 'right',
-  verticalAlign?: 'top' | 'center' | 'bottom'
 }
