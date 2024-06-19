@@ -36,7 +36,7 @@ export default class {
   } 
 
   // Add Batch 
-  public async addBatch (type: string, jobs: any[], callback: (info: { total: number, finished: number }) => any): Promise<any[]> {
+  public async addBatch (type: string, jobs: any[], callback?: (info: { total: number, finished: number }) => any): Promise<any[]> {
     return new Promise((resolve) => {
       const batch: Batch = {
         type,
@@ -110,7 +110,7 @@ export default class {
     await Promise.all(Object.keys(this._workers).map(async (id) => {
       const results = await this.sendRequest(id, { type: 'finishBatch', batchID }) as any[]
 
-      results.forEach((result) => allResults.push(result))
+      if (results !== undefined) results.forEach((result) => allResults.push(result))
     }))
 
     this._batches[batchID].finishCallback(allResults)
@@ -141,7 +141,7 @@ export default class {
 
           delete batch.jobs[msg.jobID]
 
-          batch.progressCallback({ total: batch.totalJobs, finished: batch.totalJobs - Object.keys(batch.jobs).length })
+          if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: batch.totalJobs - Object.keys(batch.jobs).length })
 
           if (Object.keys(batch.jobs).length === 0) this._finishBatch(msg.batchID)
 
@@ -167,7 +167,7 @@ interface Batch {
   jobs: { [key: string]: Job },
   result: any[]
 
-  progressCallback: (info: { total: number, finished: number }) => any
+  progressCallback?: (info: { total: number, finished: number }) => any
   finishCallback: (result: any[]) => any
 }
 

@@ -39,6 +39,11 @@ const page: Page = {
       } else {
         tasks.setTask('loadReplays', 'finished', `Replays Loaded (${Text.red(`Failed: ${replays.length - result.data!.length}`)})`)
         tasks.setTask('calculateHeatmap', 'inProgress', 'Calculating Heatmap 0% (0 / 0)')
+
+        await Engine.calculateHeatmap(result.data!, 0, result.beatmapLength!, (info) => tasks.setTask('calculateHeatmap', 'inProgress', `Calculating Heatmap ${Math.round((100 / info.total) * info.finished)}% (${info.finished} / ${info.total})`))
+
+        tasks.setTask('calculateHeatmap', 'finished', 'Heatmap Calculated')
+        tasks.setTask('renderImage', 'inProgress', 'Rendering Image')
       } 
     })
 
@@ -54,6 +59,4 @@ import { Text } from '../../../Tools/Text'
 
 import { Page } from '../../Managers/PageManager'
 import { Components } from '../UserInterface'
-import HeatTrace from '../../HeatTrace'
-
-const animationFrames: string[] = ['⠙', '⠸', '⢰', '⣠', '⣄', '⡆', '⠇', '⠋']
+import { HeatTrace } from '../../HeatTrace'
