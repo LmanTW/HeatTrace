@@ -11,6 +11,7 @@ export default class {
   public PageManager!: PageManager
 
   public settings!: Settings
+  public projectData!: ProjectData
 
   constructor () {
     this.UserInterface = new UserInterface(this)
@@ -19,7 +20,9 @@ export default class {
     this.loadData()
 
     this.PageManager
+      .addPage(Rendering_Image)
       .addPage(Page_Settings)
+      .addPage(Page_Recover)
       .addPage(Page_Render)
       .addPage(Page_Home)
   }
@@ -52,13 +55,15 @@ export default class {
     this.check()
 
     this.settings = JSON.parse(fs.readFileSync(path.join(this._dataPath, 'Data', 'Settings.json'), 'utf8'))
+    this.projectData = JSON.parse(fs.readFileSync(path.join(this._dataPath, 'Data', 'ProjectData.json'), 'utf8'))
   }
 
   // Save Data
   public saveData (): void {
     this.check()
 
-    fs.writeFileSync(path.join(this._dataPath, 'Data'), JSON.stringify(this.settings))
+    fs.writeFileSync(path.join(this._dataPath, 'Data', 'Settings.json'), JSON.stringify(this.settings))
+    fs.writeFileSync(path.join(this._dataPath, 'Data', 'ProjectData.json'), JSON.stringify(this.projectData))
   }
 
   // Check Data Files
@@ -67,16 +72,19 @@ export default class {
 
     if (!fs.existsSync(path.join(this._dataPath, 'Data'))) fs.mkdirSync(path.join(this._dataPath, 'Data'))
     if (!fs.existsSync(path.join(this._dataPath, 'Replays'))) fs.mkdirSync(path.join(this._dataPath, 'Replays'))
+    if (!fs.existsSync(path.join(this._dataPath, 'Results'))) fs.mkdirSync(path.join(this._dataPath, 'Results'))
 
     if (!fs.existsSync(path.join(this._dataPath, 'Data', 'Settings.json'))) fs.writeFileSync(path.join(this._dataPath, 'Data', 'Settings.json'), JSON.stringify(defaultSettings))
-    if (!fs.existsSync(path.join(this._dataPath, 'Data', 'ProjectData.json'))) fs.writeFileSync(path.join(this._dataPath, 'Data', 'ProjectData.json'), JSON.stringify({}))
+    if (!fs.existsSync(path.join(this._dataPath, 'Data', 'ProjectData.json'))) fs.writeFileSync(path.join(this._dataPath, 'Data', 'ProjectData.json'), JSON.stringify(defaultProjectData))
   }
 }
 
+import { defaultSettings, defaultProjectData, Settings, ProjectData } from './Data'
 import { PageManager } from '../Managers/PageManager'
-import { defaultSettings, Settings } from './Data'
-import UserInterface from './UserInterface'
+import { UserInterface } from './UserInterface'
 
+import Rendering_Image from './Pages/Rendering_Image'
 import Page_Settings from './Pages/Settings'
+import Page_Recover from './Pages/Recover'
 import Page_Render from './Pages/Render'
 import Page_Home from './Pages/Home'

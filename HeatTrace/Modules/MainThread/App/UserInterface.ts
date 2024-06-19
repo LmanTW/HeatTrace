@@ -1,5 +1,5 @@
 // User Interface
-export default class {
+class UserInterface {
   private _Core!: AppCore
 
   private _state: 'idle' | 'rendering' = 'idle'
@@ -16,7 +16,7 @@ export default class {
     this._state = 'rendering'
 
     this._cli = new DynamicCLI({
-      renderInterval: 10,
+      renderInterval: 25,
 
       pagePrefix_notSelected: '',
       pagePrefix_selected: '',
@@ -46,6 +46,14 @@ export default class {
   }
 }
 
+
+const Components = { SelectMenu, Tasks, Text }
+
+export { UserInterface, Components }
+
 import { DynamicCLI } from '../../Tools/DynamicCLI'
 
+import SelectMenu from './Components/SelectMenu'
+import Tasks from './Components/Tasks'
+import Text from './Components/Text'
 import AppCore from './Core'

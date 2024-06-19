@@ -19,4 +19,4 @@ export default page
 import { Text } from '../../../Tools/Text'
 
 import { Page } from '../../Managers/PageManager'
-import Components from '../Components'
+import { Components } from '../UserInterface'

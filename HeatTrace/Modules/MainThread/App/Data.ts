@@ -7,6 +7,8 @@ const defaultSettings: Settings = {
   threads: Math.round(os.cpus().length / 2) 
 }
 
+const defaultProjectData: ProjectData = {}
+
 // Settings
 interface Settings {
   resolution: '512x384' | '1024x768' | '2048x1536' | '4096x3072',
@@ -17,7 +19,11 @@ interface Settings {
 
 // Project Data
 interface ProjectData {
-  hash: string 
+  hash?: string,
+
+  data?: {
+    settings: Settings
+  }
 }
 
-export { defaultSettings, Settings, ProjectData }
+export { defaultSettings, defaultProjectData, Settings, ProjectData }

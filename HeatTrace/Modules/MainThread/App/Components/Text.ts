@@ -38,11 +38,11 @@ export default class extends Component {
     let x!: number
     let y!: number
 
-    if (this._style.horizontalAlign === 'left' || this._style.horizontalAlign === undefined) x = this._x
+    if (this._style.horizontalAlign === 'left' || this._style.horizontalAlign === undefined) x = Math.round(this._x)
     else if (this._style.horizontalAlign === 'center') x = Math.round((width / 2) - (this._width / 2)) + this._x
     else if (this._style.horizontalAlign === 'right') x = Math.round(width - this._width) + this._x
 
-    if (this._style.verticalAlign === 'top' || this._style.verticalAlign === undefined) y = this._y
+    if (this._style.verticalAlign === 'top' || this._style.verticalAlign === undefined) y = Math.round(this._y) 
     else if (this._style.verticalAlign === 'center') y = Math.round((height / 2) - (this._height / 2)) + this._y
     else if (this._style.verticalAlign === 'bottom') y = Math.round(height - this._height) + this._y
 

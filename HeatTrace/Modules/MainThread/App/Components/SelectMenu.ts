@@ -25,6 +25,8 @@ class SelectMenu extends Component {
     this._y = y
 
     this._style = style || {}
+
+    this._measure()
   }
 
   // Set The Options
@@ -35,17 +37,15 @@ class SelectMenu extends Component {
   }
 
   // Render The Component
-  public render(width: number, height: number, lines: string[]): void {
-    this._measure()
-
+  public render(width: number, height: number, lines: string[]): void { 
     let x!: number
     let y!: number
 
-    if (this._style.horizontalAlign === 'left' || this._style.horizontalAlign === undefined) x = this._x
+    if (this._style.horizontalAlign === 'left' || this._style.horizontalAlign === undefined) x = Math.round(this._x) 
     else if (this._style.horizontalAlign === 'center') x = Math.round((width / 2) - (this._width / 2)) + this._x
     else if (this._style.horizontalAlign === 'right') x = Math.round(width - this._width) + this._x
 
-    if (this._style.verticalAlign === 'top' || this._style.verticalAlign === undefined) y = this._y
+    if (this._style.verticalAlign === 'top' || this._style.verticalAlign === undefined) y = Math.round(this._y) 
     else if (this._style.verticalAlign === 'center') y = Math.round((height / 2) - (this._height / 2)) + this._y
     else if (this._style.verticalAlign === 'bottom') y = Math.round(height - this._height) + this._y
 
@@ -57,7 +57,7 @@ class SelectMenu extends Component {
     this._options.forEach((option, index) => {
       let optionY = Math.round(y + index)
 
-      if (optionY >= 0 && optionY <= height) {
+      if (optionY >= 0 && optionY < height) {
         let optionX!: number
         let string = (index === this._selected) ? `${prefix_selected}${option.name(true)}${suffix_selected}` : `${prefix_notSelected}${option.name(false)}${suffix_notSelected}`
 
@@ -95,6 +95,8 @@ class SelectMenu extends Component {
       else if (hex === '1b5b44') this._options[this._selected].selected!('left')
       else if (hex === '1b5b43') this._options[this._selected].selected!('right')
     }
+
+    this._measure()
   } 
 
   // Measure The Component

@@ -14,7 +14,7 @@ const page: Page = {
     const totalThreads = os.cpus().length
 
     return [
-      new Components.Text('- Settings -', 0, 1, { horizontalAlign: 'center' }),
+      new Components.Text(Text.bold('- Settings -'), 0, 1, { horizontalAlign: 'center' }),
       new Components.SelectMenu([
         { name: () => {
           if (settings.resolution === '512x384') return `Resolution: ${Text.yellow('512x384 (Low)')}`
@@ -96,4 +96,4 @@ export default page
 import { Text } from '../../../Tools/Text'
 
 import { Page } from '../../Managers/PageManager'
-import Components from '../Components'
+import { Components } from '../UserInterface'

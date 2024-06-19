@@ -57,12 +57,14 @@ function measureText (text: string): number {
 
 // Place A Text
 function placeText (width: number, base: string, text: string, x: number): string {
-  if (x + measureText(text) > width) {
-    const length = (x + measureText(text)) - width
+  const originalLength = measureText(text)
+
+  if (x + originalLength > width) {
+    const length = (x + originalLength) - width
 
     while (measureText(text) > length && text.length > 0) text = text.substring(0, text.length - 1)
   } else if (x < 0) {
-    const length = measureText(text) + x
+    const length = originalLength + x
 
     while (measureText(text) > length && text.length > 0) text = text.substring(1, text.length)
 

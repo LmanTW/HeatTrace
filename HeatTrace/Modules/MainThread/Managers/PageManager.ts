@@ -15,13 +15,7 @@ class PageManager {
   public addPage (page: Page): PageManager {
     if (this._pages[page.id] !== undefined) throw new Error(`Page Alreadt Added: "${page.id}"`)
 
-    this._pages[page.id] = { initialize: page.initialize, components: [] }
-
-    if (this._currentPage === undefined) {
-      this._currentPage = page.id
-
-      this.switchPage(page.id)
-    }
+    this._pages[page.id] = { initialize: page.initialize, components: [] } 
 
     if (page.subPages !== undefined) page.subPages.forEach((subPage) => this.addPage(subPage))  
 
@@ -29,12 +23,12 @@ class PageManager {
   }
 
   // Switch A Page
-  public async switchPage (id: string, data?: any): Promise<void> {
+  public async switchPage (id: string): Promise<void> {
     if (this._pages[id] === undefined) throw new Error(`Page Not Found: "${id}"`)
 
     this.PageInstance.TimerManager.deleteAllTimers()
 
-    this._pages[id].components = await this._pages[id].initialize(this.PageInstance, data)
+    this._pages[id].components = await this._pages[id].initialize(this.PageInstance)
 
     this._currentPage = id
   }
@@ -73,14 +67,14 @@ class PageInstance {
 interface Page {
   id: string,
 
-  initialize: (Page: PageInstance, data: any) => Promise<Component[]>,
+  initialize: (Page: PageInstance) => Promise<Component[]>,
 
   subPages?: Page[]
 }
 
 // Page Data
 interface PageData {
-  initialize: (Page: PageInstance, data: any) => Promise<Component[]>,
+  initialize: (Page: PageInstance) => Promise<Component[]>,
 
   components: Component[]
 }
