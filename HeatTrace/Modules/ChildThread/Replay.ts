@@ -66,12 +66,20 @@ async function loadReplay (data: Buffer): Promise<Replay> {
       let time: number = 0
 
       chunks.forEach((frame, index) => {
-        const fragments = frame.split('|')
+        const fragments = frame.split('|') 
+
+        if (+fragments[1] > 0 && +fragments[2] > 0) {
+          xPositions[index] = +fragments[1]
+          yPositions[index] = +fragments[2]
+        } else {
+          const position = findFirstValidPosition(chunks)
+
+          xPositions[index] = position.x
+          yPositions[index] = position.y 
+        }
 
         time += +fragments[0]
-  
-        xPositions[index] = +fragments[1]
-        yPositions[index] = +fragments[2]
+   
         timeStamps[index] = time
       })
 
@@ -84,6 +92,17 @@ async function loadReplay (data: Buffer): Promise<Replay> {
       resolve(replay)
     }) 
   }) 
+}
+
+// Find The First Valid Position
+function findFirstValidPosition (chunks: string[]): { x: number, y: number } {
+  for (let i = 0; i < chunks.length; i += 3) {
+    const fragments = chunks[i].split('|')
+
+    if (+fragments[0] > 0 && +fragments[1] > 0) return { x: +fragments[0], y: +fragments[1] }
+  }
+
+  return { x: 0, y: 0 }
 }
 
 type GameModes = 'standard' | 'taiko' | 'catch' | 'mania'

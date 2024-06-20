@@ -1,10 +1,14 @@
 // Combine Heatmaps
-export default (width: number, height: number, heatmaps: Uint32Array[]): Float64Array => {
+export default (width: number, height: number, heatmaps: { data: Uint32Array, replayHash: string, playerName: string, cursorX: number, cursorY: number }[]): { data: Float64Array, cursors: { replayHash: string, playerName: string, x: number, y: number }[] } => {
+  const cursors: { replayHash: string, playerName: string, x: number, y: number }[] = []
+
   const heatmapSum = new Uint32Array(width * height)
 
-  heatmaps.forEach((heatData) => {
-    for (let i = 0; i < heatData.length; i += 3) {
-      heatmapSum[heatData[i] + (width * heatData[i + 1])] += heatData[i + 2]
+  heatmaps.forEach((heatmap) => {
+    cursors.push({ replayHash: heatmap.replayHash, playerName: heatmap.playerName, x: heatmap.cursorX, y: heatmap.cursorY })
+
+    for (let i = 0; i < heatmap.data.length; i += 3) {
+      heatmapSum[heatmap.data[i] + (width * heatmap.data[i + 1])] += heatmap.data[i + 2]
     }
   })
 
@@ -18,7 +22,7 @@ export default (width: number, height: number, heatmaps: Uint32Array[]): Float64
 
   heatmapSum.forEach((heat, index) => heatmap[index] = mapRange(heat, 0, maxHeat, 0, 1))
 
-  return heatmap
+  return { data: heatmap, cursors }
 }
 
 import mapRange from '../Tools/MapRange'

@@ -32,6 +32,15 @@ interface Replay {
 }
 
 interface HeatTraceOptions {
+    width: number;
+    height: number;
+    style: HeatTraceStyle;
+    imageFormat: 'png' | 'jpeg';
+    videoFPS: number;
+    videoSpeed: number;
+    threads: number;
+}
+interface HeatTraceOptions_Optional {
     width?: number;
     height?: number;
     style?: HeatTraceStyle_Optional;
@@ -40,15 +49,28 @@ interface HeatTraceOptions {
     videoSpeed?: number;
     threads?: number;
 }
+interface HeatTraceStyle {
+    traceSize: number;
+    heatBoost: number;
+    cursor: boolean;
+    cursorSize: number;
+    cursorColorDistribution: 'player' | 'replay';
+    colors: Color.RGB[];
+    cursorColors: Color.RGB[];
+}
 interface HeatTraceStyle_Optional {
     traceSize?: number;
     heatBoost?: number;
+    cursor?: boolean;
+    cursorSize?: number;
+    cursorColorDistribution?: 'player' | 'replay';
     colors?: Color.RGB[];
+    cursorColors?: Color.RGB[];
 }
 
 declare class export_default{
     private _Core;
-    constructor(options?: HeatTraceOptions);
+    constructor(options?: HeatTraceOptions_Optional);
     initialize(): Promise<void>;
     loadReplays(replaysData: Buffer[], callback?: (info: {
         total: number;
@@ -65,6 +87,13 @@ declare class export_default{
         total: number;
         finished: number;
     }) => any): Promise<any>;
+    renderVideo(dataPath: string, startFrame: number, progress?: (info: {
+        totalFrames: number;
+        finishedFrames: number;
+        type: 'calculatingHeatmap' | 'rendering';
+        total: number;
+        finished: number;
+    }) => any): Promise<any>;
 }
 
-export { Color, export_default as HeatTrace, type HeatTraceOptions, type Replay, loadReplay };
+export { Color, export_default as HeatTrace, type HeatTraceOptions, type HeatTraceOptions_Optional, type HeatTraceStyle, type HeatTraceStyle_Optional, type Replay, loadReplay };

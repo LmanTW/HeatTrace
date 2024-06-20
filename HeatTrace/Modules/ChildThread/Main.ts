@@ -17,10 +17,10 @@ function startWorker () {
 
         if (replay.gameMode !== 'standard') result = { error: true, message: 'Unsupport Game Mode' }
         else if (replay.cursor === undefined) result = { error: true, message: 'Failed To Decompress Cursor Data' }
-        else result = { error: false, data: { beatmapHash: replay.beatmapHash, xPositions: replay.cursor.xPositions, yPositions: replay.cursor.yPositions, timeStamps: replay.cursor.timeStamps }}
+        else result = { error: false, data: { beatmapHash: replay.beatmapHash, replayHash: replay.replayHash, playerName: replay.playerName, xPositions: replay.cursor.xPositions, yPositions: replay.cursor.yPositions, timeStamps: replay.cursor.timeStamps }}
       } else if (msg.batchType === 'calculateHeatmaps') result = calculateHeatmap(data.width, data.height, data.start, data.end, data.replayCursorData, data.style)
       else if (msg.batchType === 'combineBeatmaps') result = combineHeatmap(data.width, data.height, data.heatmaps)
-      else if (msg.batchType === 'renderImage') result = await renderImage(data.format, data.width, data.height, data.heatmap, data.style)
+      else if (msg.batchType === 'renderImage') result = await renderImage(data.format, data.width, data.height, data.heatmap, data.cursors, data.style)
 
       sendMessage({ type: 'jobFinished', batchID: msg.batchID, jobID: msg.jobID, data: result })
     } else if (msg.type === 'request') {

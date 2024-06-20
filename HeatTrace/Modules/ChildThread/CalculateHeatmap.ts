@@ -1,11 +1,17 @@
 // Calculate The Heatmap
-export default (width: number, height: number, start: number, end: number, replayCursorData: { xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }, style: HeatTraceStyle): Uint32Array => {
+export default (width: number, height: number, start: number, end: number, replayCursorData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }, style: HeatTraceStyle): { data: Uint32Array, replayHash: string, playerName: string, cursorX: number, cursorY: number } => {
   const pixels: Map<string, number> = new Map()
 
   const traceSize = Math.round(((width + height) / 750) * style.traceSize) 
 
+  let cursorX: number = 0
+  let cursorY: number = 0
+
   replayCursorData.timeStamps.forEach((time, index) => {
     if (index > 0 && (time >= start && time <= end)) {
+      cursorX = replayCursorData.xPositions[index]
+      cursorY = replayCursorData.yPositions[index]
+
       calculateLine(
         Math.round(mapRange(replayCursorData.xPositions[index - 1], 0, 512, 0, width)),
         Math.round(mapRange(replayCursorData.yPositions[index - 1], 0, 384, 0, height)),
@@ -38,7 +44,7 @@ export default (width: number, height: number, start: number, end: number, repla
     index += 3
   })
 
-  return result
+  return { data: result, replayHash: replayCursorData.replayHash, playerName: replayCursorData.playerName, cursorX, cursorY } 
 }
 
 // Calculate Line

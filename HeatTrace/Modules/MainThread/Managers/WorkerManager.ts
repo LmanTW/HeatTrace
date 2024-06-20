@@ -38,7 +38,7 @@ class WorkerManager {
   }
 
   // Create A Batch Of Jobs
-  public createBatch (type: string, jobs: any[], callback?: (info: { total: number, finished: number }) => any): Promise<any[]> {
+  public createBatch (type: string, jobs: any[], progress?: (info: { total: number, finished: number }) => any): Promise<any[]> {
     return new Promise((resolve) => {
       const batch: Batch = {
         type,
@@ -48,7 +48,7 @@ class WorkerManager {
 
         results: [],
 
-        progressCallback: callback,
+        progressCallback: progress,
         finishCallback: resolve
       }
 
