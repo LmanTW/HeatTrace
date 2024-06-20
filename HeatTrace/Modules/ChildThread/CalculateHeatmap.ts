@@ -1,31 +1,25 @@
-// Calculate Heat Map
-export default (width: number, height: number, start: number, end: number, replay: { xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }, lineWidth: number): Uint32Array => {
+// Calculate The Heatmap
+export default (width: number, height: number, start: number, end: number, replayCursorData: { xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }, style: HeatTraceStyle): Uint32Array => {
   const pixels: Map<string, number> = new Map()
 
-  replay.timeStamps.forEach((time, index) => {
+  const traceSize = Math.round(((width + height) / 750) * style.traceSize) 
+
+  replayCursorData.timeStamps.forEach((time, index) => {
     if (index > 0 && (time >= start && time <= end)) {
       calculateLine(
-        Math.round(mapRange(replay.xPositions[index - 1], 0, 512, 0, width)),
-        Math.round(mapRange(replay.yPositions[index - 1], 0, 384, 0, height)),
-        Math.round(mapRange(replay.xPositions[index], 0, 512, 0, width)),
-        Math.round(mapRange(replay.yPositions[index], 0, 384, 0, height))
+        Math.round(mapRange(replayCursorData.xPositions[index - 1], 0, 512, 0, width)),
+        Math.round(mapRange(replayCursorData.yPositions[index - 1], 0, 384, 0, height)),
+        Math.round(mapRange(replayCursorData.xPositions[index], 0, 512, 0, width)),
+        Math.round(mapRange(replayCursorData.yPositions[index], 0, 384, 0, height))
       ).forEach((pixel) => {
-        if (lineWidth > 1) {
-          for (let x = pixel.x - lineWidth; x < pixel.x + lineWidth; x++) {
-            for (let y = pixel.y - lineWidth; y < pixel.y + lineWidth; y++) changePixel(x, y)
+        if (traceSize > 1) {
+          for (let x = pixel.x - traceSize; x < pixel.x + traceSize; x++) {
+            for (let y = pixel.y - traceSize; y < pixel.y + traceSize; y++) changePixel(pixels, x, y)
           } 
-        } else changePixel(pixel.x, pixel.y) 
+        } else changePixel(pixels, pixel.x, pixel.y)
       })
     }
   })
-
-  // Change Pixel
-  function changePixel (x: number, y: number): void {
-    const key = `${x},${y}`
-
-    if (pixels.has(key)) pixels.set(key, pixels.get(key)! + 1)
-    else pixels.set(key, 1)
-  }
 
   const result = new Uint32Array(pixels.size * 3)
 
@@ -40,6 +34,8 @@ export default (width: number, height: number, start: number, end: number, repla
     result[index] = x
     result[index + 1] = y
     result[index + 2] = value
+
+    index += 3
   })
 
   return result
@@ -67,4 +63,14 @@ function calculateLine (x0: number, y0: number, x1: number, y1: number): { x: nu
   return pixels
 }
 
+// Change Pixel
+function changePixel (pixels: Map<string, number>, x: number, y: number): void {
+  const key = `${x},${y}`
+
+  if (pixels.has(key)) pixels.set(key, pixels.get(key)! + 1)
+  else pixels.set(key, 1)
+}
+
 import mapRange from '../Tools/MapRange'
+
+import { HeatTraceStyle } from '../MainThread/Core'

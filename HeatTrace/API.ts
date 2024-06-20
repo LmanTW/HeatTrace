@@ -1,8 +1,18 @@
 import worker from 'worker_threads'
 
-import startWorker from './Modules/ChildThread/Main'
-import App from './Modules/MainThread/App/Main'
+import Color from './Modules/Tools/Color'
 
-export { App }
+import { loadReplay, Replay } from './Modules/ChildThread/Replay'
+import { HeatTraceOptions } from './Modules/MainThread/Core'
+import { startWorker } from './Modules/ChildThread/Main'
+import HeatTrace from './Modules/MainThread/Main'
 
-if (!worker.isMainThread && worker.workerData.HeatTrace === true) startWorker() 
+if (!worker.isMainThread && worker.workerData.type === 'HeatTrace') startWorker()
+
+export {
+  Color,
+
+  HeatTrace, HeatTraceOptions,
+
+  loadReplay, Replay
+}

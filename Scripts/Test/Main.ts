@@ -1,26 +1,26 @@
-import * as pty from 'node-pty'
 import path from 'path'
+import fs from 'fs'
 
-import check from '../Build/Check'
 import build from '../Build/Build'
 
-// Start
-async function start (): Promise<void> {
-  if (check()) {
-    await build() 
+// Start The Test
+async function start () {
+  await build()
 
-    const childProcess = pty.spawn('node', [path.resolve(__dirname, '../../Assets/HeatTrace_APP.js')], {
-      cols: process.stdout.columns,
-      rows: process.stdout.rows
-    })
+  const { HeatTrace } = await import('../../Assets/HeatTrace.js')
 
-    childProcess.onData((data) => process.stdout.write(data))
+  const Engine = new HeatTrace({
+    width: 512 * 2,
+    height: 384 * 2,
+  })
+  
+  await Engine.initialize()
 
-    process.stdin.setRawMode(true)
-    process.stdin.on('data', (data) => childProcess.write(data.toString())) 
+  await Engine.loadReplays(fs.readdirSync(path.join(__dirname, 'Replays')).map((fileName) => {
+    return fs.readFileSync(path.join(__dirname, 'Replays', fileName))
+  }), (info) => console.log(info))
 
-    childProcess.onExit(() => process.exit())
-  }
+  fs.writeFileSync(path.join(__dirname, 'Result.png'), Buffer.from(await Engine.renderImage((info) => console.log(info))))
 }
 
 start()

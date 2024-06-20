@@ -1,47 +1,71 @@
 import worker from 'worker_threads'
 
 import calculateHeatmap from './CalculateHeatmap'
-import loadReplay from './LoadReplay'
+import combineHeatmap from './CombineHeatmap'
+import renderImage from './RenderImage'
+import { loadReplay } from './Replay'
 
 // Start The Worker
-export default () => {
-  worker.parentPort!.on('message', async (msg) => {
+function startWorker () {
+  worker.parentPort!.on('message', async (msg: Message) => {
     if (msg.type === 'assignJob') {
-      if (batches[msg.batchID] === undefined) batches[msg.batchID] = []
+      const data = msg.data
+      let result!: any
 
-      if (msg.batchType === 'loadReplays') batches[msg.batchID].push(await loadReplay(msg.data))
-      else if (msg.batchType === 'calculateHeatmap') batches[msg.batchID].push(calculateHeatmap(msg.data.width, msg.data.height, msg.data.start, msg.data.end, msg.data.replay, 1))
-      else if (msg.batchType === 'combineHeatmaps') {
-        const pixels = new Uint32Array(msg.data.width * msg.data.height)
+      if (msg.batchType === 'loadReplays') {
+        const replay = await loadReplay(data)
 
-        msg.data.heatmaps.forEach((heatmap: Uint32Array) => {
-          for (let i = 0; i < heatmap.length; i += 3) {
-            pixels[heatmap[i] + (heatmap[i + 1] * msg.data.width)] += heatmap[i + 2]
-          }
-        })
+        if (replay.gameMode !== 'standard') result = { error: true, message: 'Unsupport Game Mode' }
+        else if (replay.cursor === undefined) result = { error: true, message: 'Failed To Decompress Cursor Data' }
+        else result = { error: false, data: { beatmapHash: replay.beatmapHash, xPositions: replay.cursor.xPositions, yPositions: replay.cursor.yPositions, timeStamps: replay.cursor.timeStamps }}
+      } else if (msg.batchType === 'calculateHeatmaps') result = calculateHeatmap(data.width, data.height, data.start, data.end, data.replayCursorData, data.style)
+      else if (msg.batchType === 'combineBeatmaps') result = combineHeatmap(data.width, data.height, data.heatmaps)
+      else if (msg.batchType === 'renderImage') result = await renderImage(data.format, data.width, data.height, data.heatmap, data.style)
 
-        batches[msg.batchID].push(pixels)
-      } 
-
-      worker.parentPort!.postMessage({ type: 'jobFinished', batchID: msg.batchID, jobID: msg.jobID })
+      sendMessage({ type: 'jobFinished', batchID: msg.batchID, jobID: msg.jobID, data: result })
     } else if (msg.type === 'request') {
-      let response: any
+      const request = msg.data
+      let response: any = undefined
 
-      let data = msg.data
-
-      if (data.type === 'finishBatch') {
-        if (batches[data.batchID] !== undefined) {
-          response = batches[data.batchID]
-
-          delete batches[data.batchID]
-        }
-      }
-
-      worker.parentPort!.postMessage({ type: 'response', data: response, requestID: msg.requestID })
+      sendMessage({ type: 'response', data: response, requestID: msg.requestID })
     }
   })
 
-  worker.parentPort!.postMessage({ type: 'ready' })
+  sendMessage({ type: 'ready' })
 }
 
-const batches: { [key :string]: any[] } = {}
+// Send Message To The Main Thread
+function sendMessage (message: Message): void {
+  worker.parentPort!.postMessage(message)
+}
+
+type Message = {
+  type: 'ready'
+} | {
+  type: 'assignJob',
+
+  batchID: string,
+  batchType: string,
+
+  jobID: string,
+  data: any
+} | {
+  type: 'jobFinished',
+
+  batchID: string,
+  jobID: string
+
+  data: any
+} | {
+  type: 'request' | 'response',
+
+  data: Request,
+
+  requestID: string
+}
+
+type Request = {
+
+}
+
+export { startWorker, Message, Request }

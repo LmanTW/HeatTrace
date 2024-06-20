@@ -1,13 +1,13 @@
 import worker from 'worker_threads'
 
 // Worker Manager
-export default class {
+class WorkerManager {
   private _workers: { [key: string]: Worker } = {}
-  private _requests: { [key: string]: (data: any) => any } = {}
+  private _requests: { [key: string]: (response: any) => any } = {}
 
   private _batches: { [key: string]: Batch } = {}
 
-  // Start The Workers
+  // Start Workers
   public async startWorkers (amount: number): Promise<void> {
     const tasks: Promise<void>[] = []
 
@@ -17,33 +17,36 @@ export default class {
       this._workers[id] = {
         state: 'starting',
 
-        worker: new worker.Worker(__filename, { workerData: { HeatTrace: true } })
+        worker: new worker.Worker(__filename, { workerData: { type: 'HeatTrace' }})
+        // HeatTrace will be bundled into one single JavaScript file after the build process.
+        // This means that the worker process will also be included in the same file.
+        // You can check out API.ts if you're confused. And if you're still confused after that, I'm sorry.
       }
 
       tasks.push(this._handleWorker(id))
     }
 
     await Promise.all(tasks)
+    // Wait for all the workers to be ready.
   }
 
   // Stop Workers
   public stopWorkers (): void {
-    Object.keys(this._workers).forEach((id) => {
-      this._workers[id].worker.terminate()
+    Object.keys(this._workers).forEach((id) => this._workers[id].worker.terminate())
 
-      delete this._workers[id]
-    })
-  } 
+    this._workers = {}
+  }
 
-  // Add Batch 
-  public async addBatch (type: string, jobs: any[], callback?: (info: { total: number, finished: number }) => any): Promise<any[]> {
+  // Create A Batch Of Jobs
+  public createBatch (type: string, jobs: any[], callback?: (info: { total: number, finished: number }) => any): Promise<any[]> {
     return new Promise((resolve) => {
       const batch: Batch = {
         type,
 
         totalJobs: jobs.length,
         jobs: {},
-        result: [],
+
+        results: [],
 
         progressCallback: callback,
         finishCallback: resolve
@@ -58,30 +61,39 @@ export default class {
   }
 
   // Send A Request
-  public async sendRequest (id: string, data: object): Promise<any> {
-    if (this._workers[id] === undefined) throw new Error(`Worker Not Found: "${id}"`)
-
+  public async sendRequest (workerID: string, data: Request): Promise<any> {
     return new Promise((resolve) => {
       const requestID = generateID(5, Object.keys(this._requests))
 
       this._requests[requestID] = resolve
 
-      this._workers[id].worker.postMessage({ type: 'request', data, requestID })
+      this._sendMessage(workerID, { type: 'request', data, requestID })
     })
+  }
+
+  // Send A Message
+  private _sendMessage (workerID: string, message: Message): void {
+    if (this._workers[workerID] === undefined) throw new Error(`Worker Not Found: "${workerID}"`)
+
+    this._workers[workerID].worker.postMessage(message)
   }
 
   // Assign Jobs
   private _assignJobs (): void {
     for (let id of Object.keys(this._workers)) {
-      if (this._workers[id].state === 'readied') {
+      const worker = this._workers[id]
+
+      if (worker.state === 'readied') {
         const job = this._getJob()
 
         if (job === undefined) break
 
-        this._workers[id].state = 'working'
-        this._batches[job.batchID].jobs[job.jobID].state = 'inProgress'
+        const batch = this._batches[job.batchID]
 
-        this._workers[id].worker.postMessage({ type: 'assignJob', batchID: job.batchID, batchType: this._batches[job.batchID].type, jobID: job.jobID, data: this._batches[job.batchID].jobs[job.jobID].data })
+        worker.state = 'working'
+        batch.jobs[job.jobID].state = 'inProgress'
+
+        this._sendMessage(id, { type: 'assignJob', batchID: job.batchID, batchType: batch.type, jobID: job.jobID, data: batch.jobs[job.jobID].data })
       }
     }
   }
@@ -103,52 +115,43 @@ export default class {
     return undefined
   }
 
-  // Finish A Batch
-  private async _finishBatch (batchID: string): Promise<void> {
-    const allResults: any = []
-
-    await Promise.all(Object.keys(this._workers).map(async (id) => {
-      const results = await this.sendRequest(id, { type: 'finishBatch', batchID }) as any[]
-
-      if (results !== undefined) results.forEach((result) => allResults.push(result))
-    }))
-
-    this._batches[batchID].finishCallback(allResults)
-
-    delete this._batches[batchID]
-  }
-
-  // Handle Workers
+  // Handle A Worker
   private async _handleWorker (id: string): Promise<void> {
+    if (this._workers[id] === undefined) throw new Error(`Worker Not Found: "${id}"`)
+
     return new Promise((resolve) => {
       const worker = this._workers[id]
 
-      worker.worker.on('message', (msg) => {
+      worker.worker.on('message', async (msg: Message) => {
         if (msg.type === 'ready') {
           worker.state = 'readied'
 
           resolve()
-        } else if (msg.type === 'response') {
-          this._requests[msg.requestID](msg.data)
-
-          delete this._requests[msg.requestID]
         }
 
         else if (msg.type === 'jobFinished') {
-          worker.state = 'readied'
-
           const batch = this._batches[msg.batchID]
 
           delete batch.jobs[msg.jobID]
 
+          batch.results.push(msg.data)
+
           if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: batch.totalJobs - Object.keys(batch.jobs).length })
 
-          if (Object.keys(batch.jobs).length === 0) this._finishBatch(msg.batchID)
+          worker.state = 'readied'
 
           this._assignJobs()
+
+          if (Object.keys(batch.jobs).length === 0) {
+            // Finish the batch when there's no more jobs left.
+
+            batch.finishCallback(batch.results)
+
+            delete this._batches[msg.batchID]
+          }    
         }
       })
-    }) 
+    })
   }
 }
 
@@ -165,9 +168,10 @@ interface Batch {
 
   totalJobs: number,
   jobs: { [key: string]: Job },
-  result: any[]
 
-  progressCallback?: (info: { total: number, finished: number }) => any
+  results: any[]
+
+  progressCallback?: (info: { total: number, finished: number }) => any,
   finishCallback: (result: any[]) => any
 }
 
@@ -178,5 +182,8 @@ interface Job {
   data: any
 }
 
+export { WorkerManager, Worker }
+
 import generateID from '../../Tools/GenerateID'
 
+import { Message, Request } from '../../ChildThread/Main'

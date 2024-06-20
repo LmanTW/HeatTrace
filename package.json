@@ -1,19 +1,18 @@
 {
   "scripts": {
     "start": "tsx Scripts/Test/Main.ts",
-    "startRaw": "tsx HeatTrace/APP.ts",
     "build": "tsx Scripts/Build/Main.ts"
   },
-  "dependencies": {
-    "lzma-native": "^8.0.6",
-    "wcwidth": "^1.0.1"
-  },
   "devDependencies": {
-    "@types/lzma-native": "^4.0.4",
-    "@types/wcwidth": "^1.0.2",
-    "node-pty": "^1.0.0",
+    "@types/lzma": "^2.3.0",
     "terser": "^5.31.1",
     "tsup": "^8.1.0",
     "tsx": "^4.15.6"
+  },
+  "dependencies": {
+    "@types/lzma-native": "^4.0.4",
+    "jimp": "^0.22.12",
+    "lzma": "^2.3.2",
+    "lzma-native": "^8.0.6"
   }
 }

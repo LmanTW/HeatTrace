@@ -5,6 +5,7 @@ export default class {
 
   constructor (data: Buffer) {
     data.forEach((byte) => this._data += byte.toString(2).padStart(8, '0'))
+    // Turn the buffer into 8 bit binary string.
   }
 
   // Read A Byte
@@ -55,7 +56,7 @@ export default class {
     } else return ''
   }
 
-  // Read
+  // Read And Go Forward
   private _read (length: number): string {
     const chunk = this._data.substring(this._index, this._index + length)
 
@@ -65,7 +66,7 @@ export default class {
   }
 }
 
-// Little Endian to Number
+// Little Endian To Number
 function littleEndianToNumber (bytes: string[], byteLength: number): number {
   let result: number = 0
   let shift: number = 0

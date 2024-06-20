@@ -2,8 +2,6 @@
   "compilerOptions": {
     "moduleResolution": "node16",
     "module": "node16",
-    "strict": true,
-
-    "lib": ["ES2021.String"]
+    "strict": true
   }
 }

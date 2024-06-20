@@ -2,25 +2,32 @@ import { build } from 'tsup'
 import path from 'path'
 import fs from 'fs'
 
-// Build
+// Build HeatTrace
 export default async (): Promise<void> => {
   if (!fs.existsSync(path.join(__dirname, 'Cache'))) fs.mkdirSync(path.join(__dirname, 'Cache'))
 
-  Log.add(` 📦 Bundling HeatTrace\n`)
+  process.stdout.write(' 📦 Bundling HeatTrace\n')
+
+  process.stdout.write('    ↳ Bundling HeatTrace-API\n')
 
   await build({
     silent: true,
 
-    entry: [path.resolve(__dirname, '../../HeatTrace/APP.ts')],
+    entry: [path.resolve(__dirname, '../../HeatTrace/API.ts')],
     outDir: path.join(__dirname, 'Cache'),
 
-    target: 'node18',
-    minify: 'terser'
+    format: 'cjs',
+    minify: 'terser',
+
+    dts: true,
+
+    skipNodeModulesBundle: true
   })
 
-  fs.renameSync(path.join(__dirname, 'Cache', 'APP.js'), path.resolve(__dirname, '../../Assets/HeatTrace_APP.js'))
+  process.stdout.write(' 📦 \x1b[32mSuccessfully Bundled HeatTrace\x1b[0m\n\n')
 
-  Log.add(` 📦 ${TextColor.green}Successfully Bundled HeatTrace\n\n${TextColor.reset}`)
+  fs.renameSync(path.join(__dirname, 'Cache', 'API.js'), path.resolve(__dirname, '../../Assets/HeatTrace.js'))
+  fs.renameSync(path.join(__dirname, 'Cache', 'API.d.ts'), path.resolve(__dirname, '../../Assets/HeatTrace.d.ts'))
+
+  fs.rmSync(path.join(__dirname, 'Cache'), { recursive: true })
 }
-
-import { Log, TextColor } from './Log'
