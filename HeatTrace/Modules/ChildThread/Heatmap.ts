@@ -49,9 +49,11 @@ class Heatmap {
     return { width, height, data: result, replayHash: cursorsData.replayHash, playerName: cursorsData.playerName, cursorX, cursorY }
   }
 
-  // Sum Up Two Heatmaps
-  public static sumUpHeatmap (width: number, heatmap: Uint32Array, pixels: Uint32Array): void {
-    for (let i = 0; i < pixels.length; i += 3) heatmap[pixels[i] + (width * pixels[i + 1])] += pixels[i + 2]
+  // Apply A Heatmaps
+  public static applyHeatmap (width: number, height: number, heatmap: Uint32Array, pixels: Uint32Array): void {
+    for (let i = 0; i < pixels.length; i += 3) {
+      if ((pixels[i] >= 0 && pixels[i] <= width) && (pixels[i + 1] >= 0 && pixels[i + 1] <= height)) heatmap[pixels[i] + (width * pixels[i + 1])] += pixels[i + 2]
+    }
   }
 
   // Normalize A Heatmap

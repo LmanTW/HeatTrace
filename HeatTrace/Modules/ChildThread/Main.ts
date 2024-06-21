@@ -25,12 +25,10 @@ function startWorker () {
 
       const batchBuffer = batchesBuffer[msg.batchID]
 
-      // This part of the code is really shiity, have basically no typing.
-
       if (batchBuffer.type === 'calculateHeatmaps') {
         if (batchBuffer.data.data === undefined) batchBuffer.data.data = new Uint32Array(msg.data.width * msg.data.height)
         
-        Heatmap.sumUpHeatmap(msg.data.width, batchBuffer.data.data, msg.data.data)
+        Heatmap.applyHeatmap(msg.data.width, msg.data.height, batchBuffer.data.data, msg.data.data)
 
         batchBuffer.data.cursors.push({ replayHash: msg.data.replayHash, playerName: msg.data.playerName, x: msg.data.cursorX, y: msg.data.cursorY })
       } else batchBuffer.data.push(msg.data)
