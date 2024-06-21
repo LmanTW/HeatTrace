@@ -1,5 +1,5 @@
 import ffmpegPath from 'ffmpeg-static'
-import ffmpeg, { setFfmpegPath } from 'fluent-ffmpeg'
+import ffmpeg from 'fluent-ffmpeg'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
@@ -9,9 +9,7 @@ class HeatTraceCore {
   private _state: 'none' | 'initializing' | 'initialized' = 'none'
   private _options!: HeatTraceOptions
 
-  private _replaysCursorData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }[] = []
-  
-  private _length: number = 0
+  private _cursorsData: CursorData[] = []
   
   private _frameInterval: number = 0
   private _frames: number = 0
@@ -23,17 +21,38 @@ class HeatTraceCore {
 
     const style = options.style || {}
 
+    const cursor = style.cursor || {}
+    const background = style.background || {}
+
     this._options = {
       width: options.width || 512,
       height: options.height || 384, 
 
       style: {
         traceSize: style.traceSize || 1,
-        heatBoost: style.traceSize || 1.75,
+        heatBoost: style.heatBoost || 1.75,
 
-        cursor: style.cursor || true,
-        cursorSize: style.cursorSize || 1,
-        cursorColorDistribution: style.cursorColorDistribution || 'player',
+        cursor: {
+          type: cursor.type || 'color',
+          distribution: cursor.distribution || 'player',
+
+          size: cursor.size || 1,
+
+          colors: [
+            { r: 214, g: 40, b: 40 },
+            { r: 247, g: 127, b: 0 },
+            { r: 252, g: 191, b: 73 },
+            { r: 234, g: 226, b: 183 }
+          ],
+          images: []
+        },
+
+        background: {
+          type: background.type || 'none',
+
+          color: { r: 0, g: 0, b: 0 },
+          image: ''
+        },
 
         colors: style.colors || [
           { r: 0, g: 0, b: 0 },
@@ -42,14 +61,7 @@ class HeatTraceCore {
           { r: 232, g: 93, b: 4 },
           { r: 250, g: 163, b: 7 },
           { r: 255, g: 255, b: 255 }
-        ],
-        cursorColors: [
-          { r: 106, g: 4, b: 15 },
-          { r: 208, g: 0, b: 0 },
-          { r: 232, g: 93, b: 4 },
-          { r: 250, g: 163, b: 7 },
-          { r: 255, g: 255, b: 255 } 
-        ]
+        ] 
       },
 
       imageFormat: options.imageFormat || 'png',
@@ -59,6 +71,8 @@ class HeatTraceCore {
 
       threads: os.cpus().length / 2 
     }
+
+    this.WorkerManager = new WorkerManager()
   }
 
   public get state () {return this._state}
@@ -83,7 +97,7 @@ class HeatTraceCore {
       if (callback !== undefined) callback({ total: info.total, loaded: info.finished })
     })
 
-    const replaysCursorData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }[] = []
+    const cursorsData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }[] = []
 
     let beatmapHash: undefined | string = undefined 
     let length: number = 0
@@ -97,13 +111,11 @@ class HeatTraceCore {
 
         if (replay.data.timeStamps[replay.data.timeStamps.length - 1] > length) length = replay.data.timeStamps[replay.data.timeStamps.length - 1]
 
-        replaysCursorData.push({ replayHash: replay.data.replayHash, playerName: replay.data.playerName, xPositions: replay.data.xPositions, yPositions: replay.data.yPositions, timeStamps: replay.data.timeStamps })
+        cursorsData.push({ replayHash: replay.data.replayHash, playerName: replay.data.playerName, xPositions: replay.data.xPositions, yPositions: replay.data.yPositions, timeStamps: replay.data.timeStamps })
       }
     }
 
-    this._replaysCursorData = replaysCursorData 
-
-    this._length = length
+    this._cursorsData = cursorsData 
 
     this._frameInterval = (1000 / this._options.videoFPS) / this.options.videoSpeed
     this._frames = Math.round(length / this._frameInterval)
@@ -147,7 +159,7 @@ class HeatTraceCore {
     return new Promise(async (resolve) => {
       if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath)
 
-      if (!fs.existsSync(path.join(dataPath, 'Frames'))) fs.mkdirSync(path.join(dataPath, 'Frames'))
+      if (!fs.existsSync(path.join(dataPath, 'Frames'))) fs.mkdirSync(path.join(dataPath, 'Frames')) 
 
       for (let i = startFrame; i < this._frames; i++) {
         if (progress !== undefined) progress({ type: 'calculatingHeatmap', total: this._frames, finished: i })
@@ -192,30 +204,23 @@ class HeatTraceCore {
   private async _calculateHeatmap (start: number, end: number, progress?: (info: { total: number, finished: number }) => any): Promise<{ cursors: { x: number, y: number }[], data: Float64Array }> {
     if (this._state !== 'initialized') throw new Error(`Cannot Calculate The Heatmap: ${this._state}`)
 
-    const jobs = this._replaysCursorData.map((replayCursorData) => {
+    const jobs = this._cursorsData.map((cursorData) => {
       return {
-        width: this._options.width || 512,
-        height: this._options.height || 384,
+        width: this._options.width,
+        height: this._options.height,
 
         start,
         end,
 
-        replayCursorData,
+        cursorData,
 
         style: this.options.style
       }
     })
 
-    const heatmaps = await this.WorkerManager.createBatch('calculateHeatmaps', jobs, (info) => {
+    return (await this.WorkerManager.createBatch('calculateHeatmaps', jobs, (info) => {
       if (progress !== undefined) progress(info)
-    })
-
-    return (await this.WorkerManager.createBatch('combineBeatmaps', [{
-      width: this._options.width || 512,
-      height: this._options.height || 384,
-
-      heatmaps
-    }]))[0]
+    }))[0]
   }
 }
 
@@ -254,12 +259,24 @@ interface HeatTraceStyle {
   traceSize: number,
   heatBoost: number,
 
-  cursor: boolean,
-  cursorSize: number,
-  cursorColorDistribution: 'player' | 'replay'
+  cursor: {
+    type: 'none' | 'color' | 'image',
+    distribution: 'player' | 'replay',
+
+    size: number,
+
+    colors: Color.RGB[],
+    images: string[]
+  },
+
+  background: {
+    type: 'none' | 'color' | 'image',
+
+    color: Color.RGB,
+    image: string
+  },
 
   colors: Color.RGB[]
-  cursorColors: Color.RGB[] 
 }
 
 // HeatTrace Style Optional
@@ -267,16 +284,29 @@ interface HeatTraceStyle_Optional {
   traceSize?: number,
   heatBoost?: number,
 
-  cursor?: boolean,
-  cursorSize?: number,
-  cursorColorDistribution?: 'player' | 'replay'
+  cursor?: {
+    type?: 'none' | 'color' | 'image',
+    distribution?: 'player' | 'replay'
+
+    size?: number,
+
+    colors?: Color.RGB[],
+    images?: string[]
+  },
+
+  background?: {
+    type?: 'none' | 'color' | 'image',
+
+    color?: Color.RGB[],
+    image?: string
+  }
 
   colors?: Color.RGB[],
-  cursorColors?: Color.RGB[]
 }
 
 export { HeatTraceCore, HeatTraceOptions, HeatTraceOptions_Optional, HeatTraceStyle, HeatTraceStyle_Optional }
 
 import Color from '../Tools/Color'
 
+import { CursorData } from '../ChildThread/Heatmap'
 import { WorkerManager } from './Managers/WorkerManager'

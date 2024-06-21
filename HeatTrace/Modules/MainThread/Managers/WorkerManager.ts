@@ -39,14 +39,16 @@ class WorkerManager {
 
   // Create A Batch Of Jobs
   public createBatch (type: string, jobs: any[], progress?: (info: { total: number, finished: number }) => any): Promise<any[]> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
+      const workers = Object.keys(this._workers)
+
       const batch: Batch = {
         type,
 
         totalJobs: jobs.length,
         jobs: {},
 
-        results: [],
+        bufferWorker: workers[workers.length - 1], 
 
         progressCallback: progress,
         finishCallback: resolve
@@ -54,7 +56,12 @@ class WorkerManager {
 
       jobs.forEach((data) => batch.jobs[generateID(5, Object.keys(batch.jobs))] = { state: 'waiting', data })
 
-      this._batches[generateID(5, Object.keys(this._batches))] = batch
+      const batchID = generateID(5, Object.keys(this._batches))
+
+      await this.sendRequest(batch.bufferWorker, { type: 'createBatchBuffer', batchID, batchType: type, total: jobs.length })
+      // Make sure the batch buffer is created, to make sure no jobs can be finished before the batch buffer is created.
+
+      this._batches[batchID] = batch
 
       this._assignJobs()
     })
@@ -134,21 +141,28 @@ class WorkerManager {
 
           delete batch.jobs[msg.jobID]
 
-          batch.results.push(msg.data)
+          this._sendMessage(batch.bufferWorker, { type: 'addBuffer', batchID: msg.batchID, data: msg.data })
+          // Send the result to the buffer worker.
 
           if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: batch.totalJobs - Object.keys(batch.jobs).length })
 
           worker.state = 'readied'
 
-          this._assignJobs()
+          this._assignJobs() 
+        } else if (msg.type === 'batchResults') {
+          const batch = this._batches[msg.batchID]
 
-          if (Object.keys(batch.jobs).length === 0) {
-            // Finish the batch when there's no more jobs left.
+          batch.finishCallback(msg.data)
 
-            batch.finishCallback(batch.results)
+          delete this._batches[msg.batchID]
+        }
 
-            delete this._batches[msg.batchID]
-          }    
+        else if (msg.type === 'response') {
+          if (this._requests[msg.requestID] !== undefined) {
+            this._requests[msg.requestID](msg.data)
+
+            delete this._requests[msg.requestID]
+          }
         }
       })
     })
@@ -169,7 +183,7 @@ interface Batch {
   totalJobs: number,
   jobs: { [key: string]: Job },
 
-  results: any[]
+  bufferWorker: string,
 
   progressCallback?: (info: { total: number, finished: number }) => any,
   finishCallback: (result: any[]) => any

@@ -12,15 +12,17 @@ async function start () {
   const Engine = new HeatTrace({
     threads: 4,
 
-    width: 512 * 2,
-    height: 384 * 2,
+    width: 512 * 1,
+    height: 384 * 1,
 
     videoFPS: 30,
 
     style: {
-      heatBoost: 2,
+      heatBoost: 3,
 
-      cursorColorDistribution: 'replay'
+      cursor: {
+        distribution: 'replay'
+      }
     }
   })
   

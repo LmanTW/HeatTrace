@@ -20,13 +20,13 @@ export default async (format: 'png' | 'jpeg', width: number, height: number, hea
 
     if (style.cursor) {
       cursors.forEach((cursor) => {
-        const key = (style.cursorColorDistribution === 'player') ? cursor.playerName : cursor.replayHash
+        const key = (style.cursor.distribution === 'player') ? cursor.playerName : cursor.replayHash
 
-        if (!distribution.has(key)) distribution.set(key, style.cursorColors[stringToNumber(key) % (style.cursorColors.length - 1)])
+        if (!distribution.has(key)) distribution.set(key, style.cursor.colors[stringToNumber(key) % (style.cursor.colors.length - 1)])
 
         const color = distribution.get(key)!
 
-        fillCircle(cursor.x, cursor.y, ((width + height) / 250) * style.cursorSize).forEach((pixel) => {
+        fillCircle(cursor.x, cursor.y, ((width + height) / 250) * style.cursor.size).forEach((pixel) => {
           if ((pixel.x > 0 && pixel.x < width) && (pixel.y > 0 && pixel.y < height)) {
             const index = (pixel.x + (width * pixel.y)) * 4
 

@@ -52,20 +52,36 @@ interface HeatTraceOptions_Optional {
 interface HeatTraceStyle {
     traceSize: number;
     heatBoost: number;
-    cursor: boolean;
-    cursorSize: number;
-    cursorColorDistribution: 'player' | 'replay';
+    cursor: {
+        type: 'none' | 'color' | 'image';
+        distribution: 'player' | 'replay';
+        size: number;
+        colors: Color.RGB[];
+        images: string[];
+    };
+    background: {
+        type: 'none' | 'color' | 'image';
+        color: Color.RGB;
+        image: string;
+    };
     colors: Color.RGB[];
-    cursorColors: Color.RGB[];
 }
 interface HeatTraceStyle_Optional {
     traceSize?: number;
     heatBoost?: number;
-    cursor?: boolean;
-    cursorSize?: number;
-    cursorColorDistribution?: 'player' | 'replay';
+    cursor?: {
+        type?: 'none' | 'color' | 'image';
+        distribution?: 'player' | 'replay';
+        size?: number;
+        colors?: Color.RGB[];
+        images?: string[];
+    };
+    background?: {
+        type?: 'none' | 'color' | 'image';
+        color?: Color.RGB[];
+        image?: string;
+    };
     colors?: Color.RGB[];
-    cursorColors?: Color.RGB[];
 }
 
 declare class export_default{
