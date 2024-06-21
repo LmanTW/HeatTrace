@@ -11,8 +11,8 @@ class Heatmap {
 
     cursorsData.timeStamps.forEach((time, index) => {
       if (index > 0 && (time >= start && time <= end)) {
-        cursorX = cursorsData.xPositions[index]
-        cursorY = cursorsData.yPositions[index]
+        cursorX = mapRange(cursorsData.xPositions[index], 0, 512, 0, width) 
+        cursorY = mapRange(cursorsData.yPositions[index], 0, 384, 0, height) 
   
         calculateLine(
           Math.round(mapRange(cursorsData.xPositions[index - 1], 0, 512, 0, width)),
@@ -50,9 +50,11 @@ class Heatmap {
   }
 
   // Apply A Heatmaps
-  public static applyHeatmap (width: number, height: number, heatmap: Uint32Array, pixels: Uint32Array): void {
-    for (let i = 0; i < pixels.length; i += 3) {
-      if ((pixels[i] >= 0 && pixels[i] <= width) && (pixels[i + 1] >= 0 && pixels[i + 1] <= height)) heatmap[pixels[i] + (width * pixels[i + 1])] += pixels[i + 2]
+  public static applyHeatmap (width: number, height: number, heatmap: Uint32Array, pixelsData: Uint32Array): void {
+    // pixelsData is an array of pixels with their position and value: x, y value, x, y, value, x, y, value, etc...
+
+    for (let i = 0; i < pixelsData.length; i += 3) {
+      if ((pixelsData[i] >= 0 && pixelsData[i] <= width) && (pixelsData[i + 1] >= 0 && pixelsData[i + 1] <= height)) heatmap[pixelsData[i] + (width * pixelsData[i + 1])] += pixelsData[i + 2]
     }
   }
 

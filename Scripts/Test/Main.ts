@@ -10,10 +10,10 @@ async function start () {
   const { HeatTrace } = await import('../../Assets/HeatTrace.js')
 
   const Engine = new HeatTrace({
-    threads: 2,
+    threads: 4,
 
-    width: 512 * 2,
-    height: 384 * 2,
+    width: 512 * 1,
+    height: 384 * 1,
 
     videoFPS: 30,
 

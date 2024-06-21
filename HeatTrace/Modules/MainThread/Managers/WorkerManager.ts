@@ -38,7 +38,7 @@ class WorkerManager {
   }
 
   // Create A Batch Of Jobs
-  public createBatch (type: string, jobs: any[], progress?: (info: { total: number, finished: number }) => any): Promise<any[]> {
+  public createBatch (type: string, jobs: any[], progress?: (info: { total: number, finished: number }) => any): Promise<Result_Combined[]> {
     return new Promise(async (resolve) => {
       const workers = Object.keys(this._workers)
 
@@ -141,7 +141,7 @@ class WorkerManager {
 
           delete batch.jobs[msg.jobID]
 
-          this._sendMessage(batch.bufferWorker, { type: 'addBuffer', batchID: msg.batchID, data: msg.data })
+          this._sendMessage(batch.bufferWorker, { type: 'addResult', batchID: msg.batchID, data: msg.data })
           // Send the result to the buffer worker.
 
           if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: batch.totalJobs - Object.keys(batch.jobs).length })
@@ -200,4 +200,5 @@ export { WorkerManager, Worker }
 
 import generateID from '../../Tools/GenerateID'
 
+import { Result_Combined } from '../../ChildThread/Types/Result'
 import { Message, Request } from '../../ChildThread/Main'

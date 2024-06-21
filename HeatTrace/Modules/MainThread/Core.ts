@@ -93,9 +93,9 @@ class HeatTraceCore {
   public async loadReplays (replaysData: Buffer[], callback?: (info: { total: number, loaded: number }) => any): Promise<{ error: boolean, message?: string, data?: { failed: number }}> {
     if (this._state !== 'initialized') throw new Error(`Cannot Load Replays: ${this._state}`)
 
-    const replays = await this.WorkerManager.createBatch('loadReplays', replaysData, (info) => {
+    const results = await this.WorkerManager.createBatch('loadReplays', replaysData, (info) => {
       if (callback !== undefined) callback({ total: info.total, loaded: info.finished })
-    })
+    }) as Result_Combined_LoadReplays[]
 
     const cursorsData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }[] = []
 
@@ -103,15 +103,15 @@ class HeatTraceCore {
     let length: number = 0
     let failed: number = 0
 
-    for (let replay of replays) {
-      if (replay.error) failed++
+    for (let result of results) {
+      if (result.error) failed++
       else {
-        if (beatmapHash === undefined) beatmapHash = replay.data.beatmapHash
-        else if (replay.data.beatmapHash !== beatmapHash) return { error: true, message: 'Found Replays With Different Beatmaps' }
+        if (beatmapHash === undefined) beatmapHash = result.data!.beatmapHash
+        else if (result.data!.beatmapHash !== beatmapHash) return { error: true, message: 'Found Replays With Different Beatmaps' }
+  
+        if (result.data!.timeStamps[result.data!.timeStamps.length - 1] > length) length = result.data!.timeStamps[result.data!.timeStamps.length - 1]
 
-        if (replay.data.timeStamps[replay.data.timeStamps.length - 1] > length) length = replay.data.timeStamps[replay.data.timeStamps.length - 1]
-
-        cursorsData.push({ replayHash: replay.data.replayHash, playerName: replay.data.playerName, xPositions: replay.data.xPositions, yPositions: replay.data.yPositions, timeStamps: replay.data.timeStamps })
+        cursorsData.push({ replayHash: result.data!.replayHash, playerName: result.data!.playerName, xPositions: result.data!.xPositions, yPositions: result.data!.yPositions, timeStamps: result.data!.timeStamps })
       }
     }
 
@@ -133,7 +133,7 @@ class HeatTraceCore {
 
     if (progress !== undefined) progress({ type: 'rendering', total: 1, finished: 0 })
 
-    const image = (await this.WorkerManager.createBatch('renderImage', [{
+    const results = await this.WorkerManager.createBatch('renderImage', [{
       format: this._options.imageFormat,
 
       width: this._options.width,
@@ -143,11 +143,11 @@ class HeatTraceCore {
       cursors: [],
       
       style: this._options.style
-    }]))[0]
+    }]) as Result_Combined_RenderImage[]
 
     if (progress !== undefined) progress({ type: 'rendering', total: 1, finished: 1 })
 
-    return image
+    return new Uint8Array(results[0].data) 
   }
 
   // Render A Video
@@ -168,7 +168,7 @@ class HeatTraceCore {
 
         if (progress !== undefined) progress({ type: 'rendering', total: this._frames, finished: i + 1 })
 
-        const image = (await this.WorkerManager.createBatch('renderImage', [{
+        const results = await this.WorkerManager.createBatch('renderImage', [{
           format: 'png',
 
           width: this._options.width,
@@ -178,9 +178,9 @@ class HeatTraceCore {
           cursors: heatmap.cursors,
       
           style: this._options.style
-        }]))[0]
+        }]) as Result_Combined_RenderImage[]
 
-        fs.writeFileSync(path.join(dataPath, 'Frames', `${i.toString().padStart(5, '0')}.png`), image)
+        fs.writeFileSync(path.join(dataPath, 'Frames', `${i.toString().padStart(5, '0')}.png`), new Uint8Array(results[0].data))
       }
 
       if (progress !== undefined) progress({ type: 'encoding', total: this._frames, finished: this._frames })
@@ -201,7 +201,7 @@ class HeatTraceCore {
   }
 
   // Calculate The Heatmap
-  private async _calculateHeatmap (start: number, end: number, progress?: (info: { total: number, finished: number }) => any): Promise<{ cursors: { x: number, y: number }[], data: Float64Array }> {
+  private async _calculateHeatmap (start: number, end: number, progress?: (info: { total: number, finished: number }) => any): Promise<{ data: Float64Array, cursors: { x: number, y: number }[] }> {
     if (this._state !== 'initialized') throw new Error(`Cannot Calculate The Heatmap: ${this._state}`)
 
     const jobs = this._cursorsData.map((cursorData) => {
@@ -218,9 +218,15 @@ class HeatTraceCore {
       }
     })
 
-    return (await this.WorkerManager.createBatch('calculateHeatmaps', jobs, (info) => {
+    const results = await this.WorkerManager.createBatch('calculateHeatmaps', jobs, (info) => {
       if (progress !== undefined) progress(info)
-    }))[0]
+    }) as Result_Combined_CalculateHeatmaps[]
+
+    return {
+      data: new Float64Array(results[0].data),
+
+      cursors: results[0].cursors
+    } 
   }
 }
 
@@ -308,5 +314,6 @@ export { HeatTraceCore, HeatTraceOptions, HeatTraceOptions_Optional, HeatTraceSt
 
 import Color from '../Tools/Color'
 
-import { CursorData } from '../ChildThread/Heatmap'
+import { Result_Combined_LoadReplays, Result_Combined_CalculateHeatmaps, Result_Combined_RenderImage } from '../ChildThread/Types/Result'
 import { WorkerManager } from './Managers/WorkerManager'
+import { CursorData } from '../ChildThread/Heatmap'

@@ -57,39 +57,42 @@ async function loadReplay (data: Buffer): Promise<Replay> {
     }
 
     decompress(Buffer.from(compressedData), undefined, (result) => {
-      const chunks = result.toString().split(',')
+      if (result === null) resolve(replay)
+      else {
+        const chunks = result.toString().split(',')
 
-      const xPositions = new Float64Array(chunks.length)
-      const yPositions = new Float64Array(chunks.length)
-      const timeStamps = new Float64Array(chunks.length)
+        const xPositions = new Float64Array(chunks.length)
+        const yPositions = new Float64Array(chunks.length)
+        const timeStamps = new Float64Array(chunks.length)
 
-      let time: number = 0
+        let time: number = 0
 
-      chunks.forEach((frame, index) => {
-        const fragments = frame.split('|') 
+        chunks.forEach((frame, index) => {
+          const fragments = frame.split('|') 
 
-        if (+fragments[1] > 0 && +fragments[2] > 0) {
-          xPositions[index] = +fragments[1]
-          yPositions[index] = +fragments[2]
-        } else {
-          const position = findFirstValidPosition(chunks)
+          if (+fragments[1] > 0 && +fragments[2] > 0) {
+            xPositions[index] = +fragments[1]
+            yPositions[index] = +fragments[2]
+          } else {
+            const position = findFirstValidPosition(chunks)
 
-          xPositions[index] = position.x
-          yPositions[index] = position.y 
+            xPositions[index] = position.x
+            yPositions[index] = position.y 
+          }
+
+          time += +fragments[0]
+    
+          timeStamps[index] = time
+        })
+
+        replay.cursor = {
+          xPositions,
+          yPositions,
+          timeStamps
         }
 
-        time += +fragments[0]
-   
-        timeStamps[index] = time
-      })
-
-      replay.cursor = {
-        xPositions,
-        yPositions,
-        timeStamps
+        resolve(replay)
       }
-
-      resolve(replay)
     }) 
   }) 
 }
