@@ -60,7 +60,6 @@ function stringToNumber (string: string): number {
 function fillCircle(centerX: number, centerY: number, radius: number): { x: number, y: number }[] {
   const pixels: { x: number, y: number }[] = []
 
-  // Loop over each pixel in the bounding box of the circle
   for (let y = -radius; y <= radius; y++) {
     for (let x = -radius; x <= radius; x++) {
       if (x * x + y * y <= radius * radius) pixels.push({ x: Math.round(centerX + x), y: Math.round(centerY + y) })

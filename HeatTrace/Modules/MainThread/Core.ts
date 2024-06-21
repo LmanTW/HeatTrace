@@ -1,3 +1,5 @@
+import ffmpegPath from 'ffmpeg-static'
+import ffmpeg, { setFfmpegPath } from 'fluent-ffmpeg'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
@@ -29,9 +31,9 @@ class HeatTraceCore {
         traceSize: style.traceSize || 1,
         heatBoost: style.traceSize || 1.75,
 
-        cursor: true,
-        cursorSize: 1,
-        cursorColorDistribution: 'player',
+        cursor: style.cursor || true,
+        cursorSize: style.cursorSize || 1,
+        cursorColorDistribution: style.cursorColorDistribution || 'player',
 
         colors: style.colors || [
           { r: 0, g: 0, b: 0 },
@@ -42,10 +44,11 @@ class HeatTraceCore {
           { r: 255, g: 255, b: 255 }
         ],
         cursorColors: [
-          { r: 239, g: 71, b: 111 },
-          { r: 255, g: 209, b: 102 },
-          { r: 6, g: 214, b: 160 },
-          { r: 6, g: 163, b: 214 }
+          { r: 106, g: 4, b: 15 },
+          { r: 208, g: 0, b: 0 },
+          { r: 232, g: 93, b: 4 },
+          { r: 250, g: 163, b: 7 },
+          { r: 255, g: 255, b: 255 } 
         ]
       },
 
@@ -136,34 +139,53 @@ class HeatTraceCore {
   }
 
   // Render A Video
-  public async renderVideo (dataPath: string, startFrame: number, progress?: (info: { totalFrames: number, finishedFrames: number, type: 'calculatingHeatmap' | 'rendering', total: number, finished: number }) => any): Promise<void> {
+  public async renderVideo (dataPath: string, startFrame: number, progress?: (info: { type: 'calculatingHeatmap' | 'rendering' | 'encoding', total: number, finished: number }) => any): Promise<string> {
     if (this._state !== 'initialized') throw new Error(`Cannot Render A Video: ${this._state}`)
 
     if (startFrame > this._frames) throw new Error(`Start Frame Is Out Of Range: ${startFrame} / ${this._frames}`)
 
-    if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath)
+    return new Promise(async (resolve) => {
+      if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath)
 
-    for (let i = startFrame; i < this._frames; i++) {
-      const heatmap = await this._calculateHeatmap(0, i * this._frameInterval, (info) => {
-        if (progress !== undefined) progress({ totalFrames: this._frames, finishedFrames: i, type: 'calculatingHeatmap', total: info.total, finished: info.finished })
-      })
+      if (!fs.existsSync(path.join(dataPath, 'Frames'))) fs.mkdirSync(path.join(dataPath, 'Frames'))
 
-      if (progress !== undefined) progress({ totalFrames: this._frames, finishedFrames: i, type: 'rendering', total: 1, finished: 0 })
+      for (let i = startFrame; i < this._frames; i++) {
+        if (progress !== undefined) progress({ type: 'calculatingHeatmap', total: this._frames, finished: i })
 
-      const image = (await this.WorkerManager.createBatch('renderImage', [{
-        format: 'png',
+        const heatmap = await this._calculateHeatmap(0, i * this._frameInterval)
 
-        width: this._options.width,
-        height: this._options.height,
+        if (progress !== undefined) progress({ type: 'rendering', total: this._frames, finished: i + 1 })
 
-        heatmap: heatmap.data,
-        cursors: heatmap.cursors,
+        const image = (await this.WorkerManager.createBatch('renderImage', [{
+          format: 'png',
+
+          width: this._options.width,
+          height: this._options.height,
+
+          heatmap: heatmap.data,
+          cursors: heatmap.cursors,
       
-        style: this._options.style
-      }]))[0]
+          style: this._options.style
+        }]))[0]
 
-      fs.writeFileSync(path.join(dataPath, `${i.toString().padStart(5, '0')}.png`), image)
-    }
+        fs.writeFileSync(path.join(dataPath, 'Frames', `${i.toString().padStart(5, '0')}.png`), image)
+      }
+
+      if (progress !== undefined) progress({ type: 'encoding', total: this._frames, finished: this._frames })
+
+      ffmpeg(path.join(dataPath, 'Frames', '%05d.png'))
+        .setFfmpegPath(ffmpegPath!)
+
+        .output(path.join(dataPath, 'Result.mp4')) 
+
+        .inputFPS(this._options.videoFPS)
+        .outputOptions('-pix_fmt yuv420p')
+        .outputOptions(`-threads ${this._options.threads}`)
+
+        .once('end', () => resolve(path.join(dataPath, 'Result.mp4')))
+
+        .run()
+    })
   }
 
   // Calculate The Heatmap

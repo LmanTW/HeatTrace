@@ -88,12 +88,10 @@ declare class export_default{
         finished: number;
     }) => any): Promise<any>;
     renderVideo(dataPath: string, startFrame: number, progress?: (info: {
-        totalFrames: number;
-        finishedFrames: number;
-        type: 'calculatingHeatmap' | 'rendering';
+        type: 'calculatingHeatmap' | 'rendering' | 'encoding';
         total: number;
         finished: number;
-    }) => any): Promise<any>;
+    }) => any): Promise<string>;
 }
 
 export { Color, export_default as HeatTrace, type HeatTraceOptions, type HeatTraceOptions_Optional, type HeatTraceStyle, type HeatTraceStyle_Optional, type Replay, loadReplay };

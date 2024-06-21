@@ -2,7 +2,7 @@
 export default (width: number, height: number, heatmaps: { data: Uint32Array, replayHash: string, playerName: string, cursorX: number, cursorY: number }[]): { data: Float64Array, cursors: { replayHash: string, playerName: string, x: number, y: number }[] } => {
   const cursors: { replayHash: string, playerName: string, x: number, y: number }[] = []
 
-  const heatmapSum = new Uint32Array(width * height)
+  const heatmapSum = new Uint32Array(width * height) 
 
   heatmaps.forEach((heatmap) => {
     cursors.push({ replayHash: heatmap.replayHash, playerName: heatmap.playerName, x: heatmap.cursorX, y: heatmap.cursorY })
@@ -12,7 +12,7 @@ export default (width: number, height: number, heatmaps: { data: Uint32Array, re
     }
   })
 
-  let maxHeat: number = 0
+  let maxHeat: number = 1
 
   heatmapSum.forEach((heat) => {
     if (heat > maxHeat) maxHeat = heat

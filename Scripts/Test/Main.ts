@@ -10,10 +10,18 @@ async function start () {
   const { HeatTrace } = await import('../../Assets/HeatTrace.js')
 
   const Engine = new HeatTrace({
-    width: 512 * 1,
-    height: 384 * 1,
+    threads: 4,
 
-    videoFPS: 15
+    width: 512 * 2,
+    height: 384 * 2,
+
+    videoFPS: 30,
+
+    style: {
+      heatBoost: 2,
+
+      cursorColorDistribution: 'replay'
+    }
   })
   
   await Engine.initialize()
@@ -22,7 +30,9 @@ async function start () {
     return fs.readFileSync(path.join(__dirname, 'Replays', fileName))
   }), (info) => console.log(info))
 
-  await Engine.renderVideo(path.join(__dirname, 'Frames'), 0, (info) => console.log(info))
+  const filePath = await Engine.renderVideo(path.join(__dirname, 'Cache'), 1, (info) => console.log(info))
+
+  fs.renameSync(filePath, path.join(__dirname, 'Result.mp4'))
 
   // fs.writeFileSync(path.join(__dirname, 'Result.png'), await Engine.renderImage((info) => console.log(info)))
 }

@@ -22,8 +22,8 @@ export default class {
   }
 
   // Render A Video
-  public async renderVideo (dataPath: string, startFrame: number, progress?: (info: { totalFrames: number, finishedFrames: number, type: 'calculatingHeatmap' | 'rendering', total: number, finished: number }) => any): Promise<any> {
-    await this._Core.renderVideo(dataPath, startFrame, progress)
+  public async renderVideo (dataPath: string, startFrame: number, progress?: (info: { type: 'calculatingHeatmap' | 'rendering' | 'encoding', total: number, finished: number }) => any): Promise<string> {
+    return await this._Core.renderVideo(dataPath, startFrame, progress)
   }
 }
 
