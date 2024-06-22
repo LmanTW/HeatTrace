@@ -21,7 +21,12 @@ async function start () {
       heatBoost: 3,
 
       cursor: {
-        distribution: 'replay'
+        type: 'image',
+        distribution: 'replay',
+
+        size: 7.5,
+
+        images: [path.join(__dirname, 'Cursor1.png'), path.join(__dirname, 'Cursor2.png')]
       }
     }
   })

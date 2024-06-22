@@ -8,15 +8,15 @@ function startWorker () {
   worker.parentPort!.on('message', async (msg: Message) => {
     if (msg.type === 'assignJob') {
       const data = msg.data
-      let result!: Result
+      let result!: JobResult
 
-      if (msg.batchType === 'loadReplays') {
-        const replay = await loadReplay(data)
+      if (data.type === 'loadReplays') {
+        const replay = await loadReplay(data.data)
 
         if (replay.gameMode !== 'standard') result = { type: 'loadReplays', error: true, message: 'Unsupport Game Mode' }
         else if (replay.cursor === undefined) result = { type: 'loadReplays', error: true, message: 'Failed To Decompress Cursor Data' }
         else result = { type: 'loadReplays', error: false, data: { beatmapHash: replay.beatmapHash, replayHash: replay.replayHash, playerName: replay.playerName, xPositions: replay.cursor.xPositions, yPositions: replay.cursor.yPositions, timeStamps: replay.cursor.timeStamps }}
-      } else if (msg.batchType === 'calculateHeatmaps') {
+      } else if (data.type === 'calculateHeatmaps') {
         const heatmap = Heatmap.calculateHeatmap(data.width, data.height, data.start, data.end, data.cursorData, data.style)
 
         const sharedBuffer = new SharedArrayBuffer(heatmap.data.length * 4)
@@ -37,14 +37,28 @@ function startWorker () {
           cursorX: heatmap.cursorX,
           cursorY: heatmap.cursorY 
         }
-      } else if (msg.batchType === 'renderImage') {
-        const image = await renderImage(data.format, data.width, data.height, data.heatmap, data.cursors, data.style)
+      } else if (data.type === 'renderHeatmap' || data.type === 'renderCursor') {
+        let layer!: Layer
+        
+        if (data.type === 'renderHeatmap') layer = Render.renderHeatmap(data.width, data.height, new Float64Array(data.heatmap), data.style)
+        else layer = Render.renderCursor(data.width, data.height, data.textures, data.cursors, data.style)
 
-        const sharedBuffer = new SharedArrayBuffer(image.length)
+        const sharedBuffer = new SharedArrayBuffer(layer.data.length)
 
-        new Uint8Array(sharedBuffer).set(image, 0)
+        new Uint8Array(sharedBuffer).set(layer.data, 0)
 
-        result = { type: 'renderImage', data: sharedBuffer } 
+        result = {
+          type: 'renderImage',
+
+          format: data.format,
+
+          width: data.width,
+          height: data.height,
+
+          layer: layer.layer,
+
+          data: sharedBuffer 
+        }
       }
 
       sendMessage({ type: 'jobFinished', batchID: msg.batchID, jobID: msg.jobID, data: result })
@@ -68,56 +82,10 @@ function sendMessage (message: Message): void {
   worker.parentPort!.postMessage(message)
 }
 
-// Message
-type Message = {
-  type: 'ready'
-} | {
-  type: 'assignJob',
+export { startWorker, sendMessage }
 
-  batchID: string,
-  batchType: string,
-
-  jobID: string,
-  data: any
-} | {
-  type: 'jobFinished',
-
-  batchID: string,
-  jobID: string
-
-  data: any
-} | {
-  type: 'addResult',
-
-  batchID: string,
-
-  data: Result 
-} | {
-  type: 'batchResults',
-
-  batchID: string,
-
-  data: Result_Combined[] 
-} | {
-  type: 'request' | 'response',
-
-  data: Request,
-
-  requestID: string
-}
-
-// Request
-type Request = {
-  type: 'createBatchBuffer',
-
-  batchID: string,
-  batchType: string,
-
-  total: number
-}
-
-export { startWorker, sendMessage, Message, Request }
-
-import { Heatmap, HeatmapData_Combined } from './Heatmap'
-import { Result, Result_Combined } from './Types/Result'
+import { JobResult } from './Types/JobResult'
+import { Message } from './Types/Message'
+import { Render, Layer } from './Render'
 import BatchBuffer from './BatchBuffer'
+import { Heatmap } from './Heatmap'

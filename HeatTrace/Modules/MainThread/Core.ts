@@ -15,6 +15,7 @@ class HeatTraceCore {
   private _frames: number = 0
 
   public WorkerManager = new WorkerManager()
+  public TextureManager = new TextureManager()
 
   constructor (options?: HeatTraceOptions_Optional) {
     if (options === undefined) options = {}
@@ -46,7 +47,7 @@ class HeatTraceCore {
             { r: 252, g: 191, b: 73 },
             { r: 234, g: 226, b: 183 }
           ],
-          images: []
+          images: cursor.images || []
         },
 
         background: {
@@ -81,23 +82,41 @@ class HeatTraceCore {
   public get options () {return this._options}
 
   // Initialize HeatTrace
-  public async initialize (): Promise<void> {
+  public async initialize (): Promise<{ error: boolean, message?: string }> {
     if (this._state !== 'none') throw new Error(`Cannot Initialize HeatTrace: ${this._state}`)
 
     this._state = 'initializing'
 
+    const cursorSize = ((this._options.width + this.options.height) / 250) * this._options.style.cursor.size
+
+    for (let filePath of this._options.style.cursor.images) {
+      const result = await this.TextureManager.addTexture(filePath, 'min', cursorSize, cursorSize)
+
+      if (result.error) return { error: true, message: 'Failed To Load Cursor Image' }
+    }
+
     await this.WorkerManager.startWorkers(this._options.threads)
     
     this._state = 'initialized'
+    
+    return { error: false }
   }
 
   // Load Replays
   public async loadReplays (replaysData: Buffer[], callback?: (info: { total: number, loaded: number }) => any): Promise<{ error: boolean, message?: string, data?: { failed: number }}> {
     if (this._state !== 'initialized') throw new Error(`Cannot Load Replays: ${this._state}`)
 
-    const results = await this.WorkerManager.createBatch('loadReplays', replaysData, (info) => {
+    const jobs: JobData[] = replaysData.map((replayData) => {
+      return {
+        type: 'loadReplays',
+
+        data: replayData
+      }
+    })
+
+    const results = await this.WorkerManager.createBatch('loadReplays', jobs, (info) => {
       if (callback !== undefined) callback({ total: info.total, loaded: info.finished })
-    }) as Result_Combined_LoadReplays[]
+    }) as JobResult_Combined_LoadReplays[]
 
     const cursorsData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }[] = []
 
@@ -136,16 +155,17 @@ class HeatTraceCore {
     if (progress !== undefined) progress({ type: 'rendering', total: 1, finished: 0 })
 
     const results = await this.WorkerManager.createBatch('renderImage', [{
+      type: 'renderHeatmap',
+
       format: this._options.imageFormat,
 
       width: this._options.width,
       height: this._options.height,
 
       heatmap: heatmap.data,
-      cursors: [],
       
       style: this._options.style
-    }]) as Result_Combined_RenderImage[]
+    }]) as JobResult_Combined_RenderImage[]
 
     if (progress !== undefined) progress({ type: 'rendering', total: 1, finished: 1 })
 
@@ -170,17 +190,34 @@ class HeatTraceCore {
 
         if (progress !== undefined) progress({ type: 'rendering', total: this._frames, finished: i + 1 })
 
-        const results = await this.WorkerManager.createBatch('renderImage', [{
-          format: 'png',
+        const results = await this.WorkerManager.createBatch('renderImage', [
+          {
+            type: 'renderHeatmap',
 
-          width: this._options.width,
-          height: this._options.height,
+            format: 'png',
 
-          heatmap: heatmap.data,
-          cursors: heatmap.cursors,
+            width: this._options.width,
+            height: this._options.height,
+
+            heatmap: heatmap.data,
       
-          style: this._options.style
-        }]) as Result_Combined_RenderImage[]
+            style: this._options.style
+          },
+          {
+            type: 'renderCursor',
+
+            format: 'png',
+
+            width: this._options.width,
+            height: this._options.height,
+
+            textures: this.TextureManager.textures,
+
+            cursors: heatmap.cursors,
+
+            style: this._options.style
+          }
+        ]) as JobResult_Combined_RenderImage[]
 
         fs.writeFileSync(path.join(dataPath, 'Frames', `${i.toString().padStart(5, '0')}.png`), new Uint8Array(results[0].data))
       }
@@ -203,11 +240,13 @@ class HeatTraceCore {
   }
 
   // Calculate The Heatmap
-  private async _calculateHeatmap (start: number, end: number, progress?: (info: { total: number, finished: number }) => any): Promise<{ data: Float64Array, cursors: { x: number, y: number }[] }> {
+  private async _calculateHeatmap (start: number, end: number, progress?: (info: { total: number, finished: number }) => any): Promise<{ data: SharedArrayBuffer, cursors: { replayHash: string, playerName: string, x: number, y: number }[] }> {
     if (this._state !== 'initialized') throw new Error(`Cannot Calculate The Heatmap: ${this._state}`)
 
-    const jobs = this._cursorsData.map((cursorData) => {
+    const jobs: JobData[] = this._cursorsData.map((cursorData) => {
       return {
+        type: 'calculateHeatmaps',
+
         width: this._options.width,
         height: this._options.height,
 
@@ -222,10 +261,10 @@ class HeatTraceCore {
 
     const results = await this.WorkerManager.createBatch('calculateHeatmaps', jobs, (info) => {
       if (progress !== undefined) progress(info)
-    }) as Result_Combined_CalculateHeatmaps[]
+    }) as JobResult_Combined_CalculateHeatmaps[]
 
     return {
-      data: new Float64Array(results[0].data),
+      data: results[0].data,
 
       cursors: results[0].cursors
     } 
@@ -320,6 +359,8 @@ export { HeatTraceCore, HeatTraceOptions, HeatTraceOptions_Optional, HeatTraceSt
 
 import Color from '../Tools/Color'
 
-import { Result_Combined_LoadReplays, Result_Combined_CalculateHeatmaps, Result_Combined_RenderImage } from '../ChildThread/Types/Result'
+import { JobResult_Combined_LoadReplays, JobResult_Combined_CalculateHeatmaps, JobResult_Combined_RenderImage } from '../ChildThread/Types/JobResult'
+import { TextureManager } from './Managers/TextureManager'
 import { WorkerManager } from './Managers/WorkerManager'
+import { JobData } from '../ChildThread/Types/JobData'
 import { CursorData } from '../ChildThread/Heatmap'

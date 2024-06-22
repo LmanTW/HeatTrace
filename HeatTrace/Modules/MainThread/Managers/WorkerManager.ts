@@ -38,7 +38,7 @@ class WorkerManager {
   }
 
   // Create A Batch Of Jobs
-  public createBatch (type: string, jobs: any[], progress?: (info: { total: number, finished: number }) => any): Promise<Result_Combined[]> {
+  public createBatch (type: string, jobs: JobData[], progress?: (info: { total: number, finished: number }) => any): Promise<JobResult_Combined[]> {
     return new Promise(async (resolve) => {
       const workers = Object.keys(this._workers)
 
@@ -193,12 +193,13 @@ interface Batch {
 interface Job {
   state: 'waiting' | 'inProgress',
 
-  data: any
+  data: JobData
 }
 
-export { WorkerManager, Worker }
+export { WorkerManager }
 
 import generateID from '../../Tools/GenerateID'
 
-import { Result_Combined } from '../../ChildThread/Types/Result'
-import { Message, Request } from '../../ChildThread/Main'
+import { JobResult_Combined } from '../../ChildThread/Types/JobResult'
+import { Message, Request } from '../../ChildThread/Types/Message'
+import { JobData } from '../../ChildThread/Types/JobData'
