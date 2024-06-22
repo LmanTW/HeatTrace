@@ -15,7 +15,7 @@ export default class {
     if (batchBuffer.type === 'calculateHeatmaps' && result.type === 'calculateHeatmaps') {
       if (batchBuffer.data.data === undefined) batchBuffer.data.data = new Uint32Array(result.width * result.height)
         
-      Heatmap.applyHeatmap(result.width, result.height, batchBuffer.data.data, new Uint32Array(result.data))
+      Heatmap.applyHeatmap(result.width, batchBuffer.data.data, new Uint32Array(result.data))
 
       batchBuffer.data.cursors.push({ replayHash: result.replayHash, playerName: result.playerName, x: result.cursorX, y: result.cursorY })
     } else (batchBuffer.data as any[]).push(result)

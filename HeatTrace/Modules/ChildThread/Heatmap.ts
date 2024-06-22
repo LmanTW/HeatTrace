@@ -1,30 +1,44 @@
 // Heatmap
 class Heatmap {
   // Calculate The Heatmap
-  public static calculateHeatmap (width: number, height: number, start: number, end: number, cursorsData: CursorData, style: HeatTraceStyle): HeatmapData {
+  public static calculateHeatmap (width: number, height: number, start: number, end: number, cursorData: CursorData, style: HeatTraceStyle): HeatmapData {
     const pixels: Map<string, number> = new Map()
 
     const traceSize = Math.round(((width + height) / 750) * style.traceSize) 
 
-    let cursorX: number = 0
-    let cursorY: number = 0
+    let cursorX: undefined | number = undefined 
+    let cursorY: undefined | number = undefined 
 
-    cursorsData.timeStamps.forEach((time, index) => {
-      if (index > 0 && (time >= start && time <= end)) {
-        cursorX = mapRange(cursorsData.xPositions[index], 0, 512, 0, width) 
-        cursorY = mapRange(cursorsData.yPositions[index], 0, 384, 0, height) 
+    cursorData.timeStamps.forEach((time, index) => {
+      if (index > 1 && (time >= start && time <= end)) {
+        const x = mapRange(cursorData.xPositions[index], 0, 512, 0, width)
+        const y = mapRange(cursorData.yPositions[index], 0, 384, 0, height)
+
+        if (cursorX === undefined || cursorY === undefined) {
+          cursorX = x
+          cursorY = y
+        } else {
+          if (Math.hypot(cursorX - x, cursorY - y) > ((width + height) / 10)) return
+
+          cursorX = x
+          cursorY = y
+        }
   
         calculateLine(
-          Math.round(mapRange(cursorsData.xPositions[index - 1], 0, 512, 0, width)),
-          Math.round(mapRange(cursorsData.yPositions[index - 1], 0, 384, 0, height)),
-          Math.round(mapRange(cursorsData.xPositions[index], 0, 512, 0, width)),
-          Math.round(mapRange(cursorsData.yPositions[index], 0, 384, 0, height))
+          Math.round(mapRange(cursorData.xPositions[index - 1], 0, 512, 0, width)),
+          Math.round(mapRange(cursorData.yPositions[index - 1], 0, 384, 0, height)),
+          Math.round(mapRange(x, 0, 512, 0, width)),
+          Math.round(mapRange(y, 0, 384, 0, height))
         ).forEach((pixel) => {
           if (traceSize > 1) {
             for (let x = pixel.x - traceSize; x < pixel.x + traceSize; x++) {
-              for (let y = pixel.y - traceSize; y < pixel.y + traceSize; y++) changePixel(pixels, x, y)
+              for (let y = pixel.y - traceSize; y < pixel.y + traceSize; y++) {
+                if ((x >= 0 && x < width) && (y >= 0 && y < height)) changePixel(pixels, x, y)
+              }
             } 
-          } else changePixel(pixels, pixel.x, pixel.y)
+          } else {
+            if ((pixel.x >= 0 && pixel.x < width) && (pixel.y >= 0 && pixel.y < height)) changePixel(pixels, pixel.x, pixel.y)
+          }
         })
       }
     })
@@ -46,16 +60,25 @@ class Heatmap {
       index += 3
     })
 
-    return { width, height, data: result, replayHash: cursorsData.replayHash, playerName: cursorsData.playerName, cursorX, cursorY }
+    return {
+      width,
+      height,
+
+      data: result,
+
+      replayHash: cursorData.replayHash,
+      playerName: cursorData.playerName,
+
+      cursorX: cursorX || cursorData.xPositions[1],
+      cursorY: cursorY || cursorData.yPositions[1]
+    }
   }
 
   // Apply A Heatmaps
-  public static applyHeatmap (width: number, height: number, heatmap: Uint32Array, pixelsData: Uint32Array): void {
+  public static applyHeatmap (width: number, heatmap: Uint32Array, pixelsData: Uint32Array): void {
     // pixelsData is an array of pixels with their position and value: x, y value, x, y, value, x, y, value, etc...
 
-    for (let i = 0; i < pixelsData.length; i += 3) {
-      if ((pixelsData[i] >= 0 && pixelsData[i] <= width) && (pixelsData[i + 1] >= 0 && pixelsData[i + 1] <= height)) heatmap[pixelsData[i] + (width * pixelsData[i + 1])] += pixelsData[i + 2]
-    }
+    for (let i = 0; i < pixelsData.length; i += 3) heatmap[pixelsData[i] + (width * pixelsData[i + 1])] += pixelsData[i + 2]
   }
 
   // Normalize A Heatmap

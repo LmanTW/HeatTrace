@@ -50,8 +50,9 @@ interface HeatTraceOptions_Optional {
     threads?: number;
 }
 interface HeatTraceStyle {
-    traceSize: number;
     heatBoost: number;
+    traceSize: number;
+    traceLength: number;
     cursor: {
         type: 'none' | 'color' | 'image';
         distribution: 'player' | 'replay';
@@ -67,8 +68,9 @@ interface HeatTraceStyle {
     colors: Color.RGB[];
 }
 interface HeatTraceStyle_Optional {
-    traceSize?: number;
     heatBoost?: number;
+    traceSize?: number;
+    traceLength?: number;
     cursor?: {
         type?: 'none' | 'color' | 'image';
         distribution?: 'player' | 'replay';

@@ -29,8 +29,10 @@ class HeatTraceCore {
       height: options.height || 384, 
 
       style: {
-        traceSize: style.traceSize || 1,
         heatBoost: style.heatBoost || 1.75,
+
+        traceSize: style.traceSize || 1,
+        traceLength: style.traceLength || Infinity,
 
         cursor: {
           type: cursor.type || 'color',
@@ -262,8 +264,10 @@ interface HeatTraceOptions_Optional {
 
 // HeatTrace Style
 interface HeatTraceStyle {
-  traceSize: number,
   heatBoost: number,
+
+  traceSize: number,
+  traceLength: number,
 
   cursor: {
     type: 'none' | 'color' | 'image',
@@ -287,8 +291,10 @@ interface HeatTraceStyle {
 
 // HeatTrace Style Optional
 interface HeatTraceStyle_Optional {
-  traceSize?: number,
   heatBoost?: number,
+
+  traceSize?: number,
+  traceLength?: number,
 
   cursor?: {
     type?: 'none' | 'color' | 'image',
