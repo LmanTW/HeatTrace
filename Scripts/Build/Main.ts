@@ -1,3 +1,3 @@
 import build from './Build'
 
-build()
+build(true)

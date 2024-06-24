@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs'
 
 // Build HeatTrace
-export default async (): Promise<void> => {
+export default async (production: boolean): Promise<void> => {
   if (!fs.existsSync(path.join(__dirname, 'Cache'))) fs.mkdirSync(path.join(__dirname, 'Cache'))
 
   process.stdout.write(' 📦 Bundling HeatTrace\n')
@@ -19,7 +19,7 @@ export default async (): Promise<void> => {
     format: 'cjs',
     minify: 'terser',
 
-    dts: true,
+    dts: production,
 
     skipNodeModulesBundle: true
   })
@@ -27,7 +27,7 @@ export default async (): Promise<void> => {
   process.stdout.write(' 📦 \x1b[32mSuccessfully Bundled HeatTrace\x1b[0m\n\n')
 
   fs.renameSync(path.join(__dirname, 'Cache', 'API.js'), path.resolve(__dirname, '../../Assets/HeatTrace.js'))
-  fs.renameSync(path.join(__dirname, 'Cache', 'API.d.ts'), path.resolve(__dirname, '../../Assets/HeatTrace.d.ts'))
+  if (production) fs.renameSync(path.join(__dirname, 'Cache', 'API.d.ts'), path.resolve(__dirname, '../../Assets/HeatTrace.d.ts'))
 
   fs.rmSync(path.join(__dirname, 'Cache'), { recursive: true })
 }

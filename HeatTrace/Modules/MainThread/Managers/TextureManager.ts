@@ -1,46 +1,74 @@
 import Jimp from 'jimp'
+import fs from 'fs'
 
 // Texture Manager
 class TextureManager {
+  private _Core!: HeatTrace_Core
+
   private _textures: { [key: string]: Texture } = {}
+
+  constructor (Core: HeatTrace_Core) {
+    this._Core = Core
+  }
 
   public get textures () {return this._textures}
 
-  // Add A Texture
-  public addTexture (filePath: string, scaleType: 'min' | 'max', width: number, height: number): Promise<{ error: boolean }> {
-    if (this._textures[filePath] !== undefined) throw new Error(`Texture Already Exists: "${filePath}"`)
+  // Load The Textures
+  public async loadTextures (): Promise<{ error: boolean, message?: string }> {
+    const jobs: Job_Data[] = []
 
-    return new Promise((resolve) => {
-      new Jimp(filePath, (error, image) => {
-        if (error === null) {
+    const style = this._Core.options.style
 
-          const size = calculateImageScale(scaleType, image.getWidth(), image.getHeight(), width, height)
+    if (this._Core.options.style.cursor.type === 'image') {
+      const cursorSize = ((this._Core.options.width + this._Core.options.height) / 350) * style.cursor.size
 
-          image.resize(size.width, size.height)
-  
-          const sharedBuffer = new SharedArrayBuffer(image.bitmap.data.length)
-  
-          new Uint8Array(sharedBuffer).set(image.bitmap.data, 0)
+      for (let filePath of style.cursor.images) {
+        jobs.push({
+          type: 'loadTexture',
 
-          this._textures[filePath] = {
-            width: image.bitmap.width,
-            height: image.bitmap.height,
+          filePath,
+          
+          scaleType: 'min',
+          width: cursorSize,
+          height: cursorSize,
 
-            data: sharedBuffer
-          } 
+          effect: {} 
+        }) 
+      }
+    }
 
-          resolve({ error: false })
-        } else resolve({ error: true })
+    if (this._Core.options.style.background.type === 'image') {
+      jobs.push({
+        type: 'loadTexture',
+
+        filePath: style.background.image,
+
+        scaleType: 'max',
+        width: this._Core.options.width,
+        height: this._Core.options.height,
+
+        effect: { brightness: style.background.brightness }
       })
-    }) 
+    }
+
+    const textures: { [key: string]: Texture } = {}
+
+    const results = await this._Core.WorkerManager.createBatch(jobs) as Job_Result_LoadTexture[]
+
+    for (let result of results) {
+      if (result.error) return { error: true, message: result.message }
+      else textures[result.data!.filePath] = result.data!.texture
+    }
+
+    this._textures = textures
+
+    return { error: false }
   }
-}
 
-// Calculate Image Scale
-function calculateImageScale (type: 'min' | 'max', srcWidth: number, srcHeight: number, maxWidth: number, maxHeight: number): { width: number, height: number } {
-  const ratio = (type === 'min') ? Math.min(maxWidth / srcWidth, maxHeight / srcHeight) : Math.max(maxWidth / srcWidth, maxHeight / srcHeight)
-
-  return { width: srcWidth * ratio, height: srcHeight * ratio }
+  // Unload All Textures
+  public unloadTextures (): void {
+    Object.keys(this.textures).forEach((id) => delete this.textures[id])
+  }
 }
 
 // Texture
@@ -51,4 +79,15 @@ interface Texture {
   data: SharedArrayBuffer // Uint8Array
 }
 
-export { TextureManager, Texture }
+// Texture Filter
+interface TextureEffects {
+  brightness?: number,
+}
+
+export { TextureManager, Texture, TextureEffects }
+
+import { Job_Result_LoadTexture } from '../../../Types/Job_Result'
+import { Job_Data } from '../../../Types/Job_Data'
+
+import HeatTrace_Core from '../Core'
+

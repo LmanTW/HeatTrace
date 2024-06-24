@@ -7,11 +7,82 @@ declare namespace Color {
     function getGradientColor(value: number, colors: Color.RGB[]): Color.RGB;
 }
 
+interface HeatTrace_Style {
+    heatBoost: number;
+    traceSize: number;
+    traceOpacity: [number, number];
+    traceLength: number;
+    colors: Color.RGB[];
+    cursor: {
+        type: 'none' | 'color' | 'image';
+        distribution: 'player' | 'replay';
+        size: number;
+        opacity: number;
+        colors: Color.RGB[];
+        images: string[];
+    };
+    background: {
+        type: 'none' | 'color' | 'image';
+        brightness: number;
+        color: Color.RGB;
+        image: string;
+    };
+}
+interface HeatTrace_Style_Optional {
+    heatBoost?: number;
+    traceSize?: number;
+    traceOpacity?: [number, number];
+    traceLength?: number;
+    colors?: Color.RGB[];
+    cursor?: {
+        type?: 'none' | 'color' | 'image';
+        distribution?: 'player' | 'replay';
+        size?: number;
+        opacity?: number;
+        colors?: Color.RGB[];
+        images?: string[];
+    };
+    background?: {
+        type?: 'none' | 'color' | 'image';
+        brightness?: number;
+        color?: Color.RGB;
+        image?: string;
+    };
+}
+
+interface HeatTrace_Options {
+    width: number;
+    height: number;
+    style: HeatTrace_Style;
+    imageFormat: 'png' | 'jpeg' | 'raw';
+    imageQuality: number;
+    videoFPS: number;
+    videoSpeed: number;
+    threads: number;
+    maxCursorTravelDistance: number;
+}
+interface HeatTrace_Options_Optional {
+    width?: number;
+    height?: number;
+    style?: HeatTrace_Style_Optional;
+    imageFormat?: 'png' | 'jpeg' | 'raw';
+    imageQuality?: number;
+    videoFPS?: number;
+    videoSpeed?: number;
+    threads?: number;
+    maxCursorTravelDistance?: number;
+}
+
+interface RawCursorData {
+    xPositions: Float64Array;
+    yPositions: Float64Array;
+    timeStamps: Float64Array;
+}
+
 declare function loadReplay(data: Buffer): Promise<Replay>;
-type GameModes = 'standard' | 'taiko' | 'catch' | 'mania';
 interface Replay {
     version: number;
-    gameMode: GameModes;
+    gameMode: 'standard' | 'taiko' | 'catch' | 'mania';
     beatmapHash: string;
     replayHash: string;
     playerName: string;
@@ -24,92 +95,35 @@ interface Replay {
     score: number;
     greatestCombo: number;
     perfect: boolean;
-    cursor?: {
-        xPositions: Float64Array;
-        yPositions: Float64Array;
-        timeStamps: Float64Array;
-    };
-}
-
-interface HeatTraceOptions {
-    width: number;
-    height: number;
-    style: HeatTraceStyle;
-    imageFormat: 'png' | 'jpeg';
-    videoFPS: number;
-    videoSpeed: number;
-    threads: number;
-}
-interface HeatTraceOptions_Optional {
-    width?: number;
-    height?: number;
-    style?: HeatTraceStyle_Optional;
-    imageFormat?: 'png' | 'jpeg';
-    videoFPS?: number;
-    videoSpeed?: number;
-    threads?: number;
-}
-interface HeatTraceStyle {
-    heatBoost: number;
-    traceSize: number;
-    traceLength: number;
-    cursor: {
-        type: 'none' | 'color' | 'image';
-        distribution: 'player' | 'replay';
-        size: number;
-        colors: Color.RGB[];
-        images: string[];
-    };
-    background: {
-        type: 'none' | 'color' | 'image';
-        color: Color.RGB;
-        image: string;
-    };
-    colors: Color.RGB[];
-}
-interface HeatTraceStyle_Optional {
-    heatBoost?: number;
-    traceSize?: number;
-    traceLength?: number;
-    cursor?: {
-        type?: 'none' | 'color' | 'image';
-        distribution?: 'player' | 'replay';
-        size?: number;
-        colors?: Color.RGB[];
-        images?: string[];
-    };
-    background?: {
-        type?: 'none' | 'color' | 'image';
-        color?: Color.RGB[];
-        image?: string;
-    };
-    colors?: Color.RGB[];
+    cursor?: RawCursorData;
 }
 
 declare class export_default{
     private _Core;
-    constructor(options?: HeatTraceOptions_Optional);
-    initialize(): Promise<void>;
-    loadReplays(replaysData: Buffer[], callback?: (info: {
+    constructor(options?: HeatTrace_Options_Optional);
+    initialize(progress?: (info: {
+        type: 'loadingTextures' | 'startingWorkers';
+    }) => any): Promise<{
+        error: boolean;
+        message?: string;
+    }>;
+    terminate(): Promise<void>;
+    loadReplays(replays: Buffer[], progress?: (info: {
         total: number;
-        loaded: number;
+        finished: number;
     }) => any): Promise<{
         error: boolean;
         message?: string;
         data?: {
+            loaded: number;
             failed: number;
         };
     }>;
-    renderImage(callback?: (info: {
-        type: 'calculatingHeatmap' | 'rendering';
+    renderImage(frame?: undefined | number, progress?: (info: {
+        type: 'calculatingHeatmaps' | 'renderingImage';
         total: number;
         finished: number;
     }) => any): Promise<any>;
-    renderVideo(dataPath: string, startFrame: number, progress?: (info: {
-        type: 'calculatingHeatmap' | 'rendering' | 'encoding';
-        total: number;
-        finished: number;
-    }) => any): Promise<string>;
 }
 
-export { Color, export_default as HeatTrace, type HeatTraceOptions, type HeatTraceOptions_Optional, type HeatTraceStyle, type HeatTraceStyle_Optional, type Replay, loadReplay };
+export { export_default as HeatTrace, type HeatTrace_Options, type HeatTrace_Options_Optional, type HeatTrace_Style, type HeatTrace_Style_Optional, type Replay, loadReplay };

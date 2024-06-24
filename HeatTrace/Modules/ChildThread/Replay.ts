@@ -37,7 +37,7 @@ async function loadReplay (data: Buffer): Promise<Replay> {
 
     const replay: Replay = {
       version,
-      gameMode: ['standard', 'taiko', 'catch', 'mania'][gameMode] as GameModes,
+      gameMode: ['standard', 'taiko', 'catch', 'mania'][gameMode] as any,
           
       beatmapHash,
       replayHash,
@@ -74,7 +74,7 @@ async function loadReplay (data: Buffer): Promise<Replay> {
 
           xPositions[index] = +fragments[1]
           yPositions[index] = +fragments[2]
-          timeStamps[index] = time 
+          timeStamps[index] = time
         })
 
         replay.cursor = {
@@ -89,12 +89,10 @@ async function loadReplay (data: Buffer): Promise<Replay> {
   }) 
 }
 
-type GameModes = 'standard' | 'taiko' | 'catch' | 'mania'
-
-// Repla
+// Replay
 interface Replay {
   version: number,
-  gameMode: GameModes,
+  gameMode: 'standard' | 'taiko' | 'catch' | 'mania',
 
   beatmapHash: string,
   replayHash: string,
@@ -112,15 +110,12 @@ interface Replay {
   greatestCombo: number,
   perfect: boolean,
 
-  cursor?: {
-    // Possibly undefiend if the decompression failed.
-
-    xPositions: Float64Array,
-    yPositions: Float64Array,
-    timeStamps: Float64Array
-  }
+  cursor?: RawCursorData
+  // Possibly undefiend if the decompression failed.
 }
 
 export { loadReplay, Replay }
 
 import Reader from '../Tools/Reader'
+
+import { RawCursorData } from './CursorData'

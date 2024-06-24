@@ -2,151 +2,153 @@ import Jimp from 'jimp'
 
 // Render
 class Render {
-  // Render The Heatmap
-  public static renderHeatmap (width: number, height: number, heatmap: Float64Array, style: HeatTraceStyle): Layer {
-    const pixels = new Uint8Array((width * height) * 4)
+  // Render The Background
+  public static renderBackground (width: number, height: number, textures: { [key: string]: Texture }, style: HeatTrace_Style): Layer {
+    const sharedBuffer = new SharedArrayBuffer(Math.round((width * height) * 4))
+    // Each pixel have 4 values. (r, g, b, a)
 
-    heatmap.forEach((heat, index) => {
-      index = index * 4
+    const pixels = new Uint8Array(sharedBuffer)
 
-      const color = Color.getGradientColor(mapRange(heat * style.heatBoost, 0, 1, 0, 1), style.colors)
+    if (style.background.type === 'color') {
+      for (let i = 0; i < pixels.length; i += 4) {
+        pixels[i] = limitValue(style.background.color.r + (255 * style.background.brightness), 0, 255)
+        pixels[i + 1] = limitValue(style.background.color.g + (255 * style.background.brightness), 0, 255) 
+        pixels[i + 2] = limitValue(style.background.color.b + (255 * style.background.brightness), 0, 255) 
+        pixels[i + 3] = 255
+      }
+    } else if (style.background.type === 'image') {
+      const texture = textures[style.background.image]
 
-      pixels[index] = color.r
-      pixels[index + 1] = color.g
-      pixels[index + 2] = color.b
-      pixels[index + 3] = 255
-    })
+      const x = (width / 2) - (texture.width / 2)
+      const y = (height / 2) - (texture.height / 2)
 
-    return { layer: 0, data: pixels } 
+      this._putTexture(pixels, width, height, texture, Math.round(x), Math.round(y), 255)
+    }
+
+    return { layer: 0, pixels: sharedBuffer }
   }
 
-  // Render The Cursor
-  public static renderCursor (width: number, height: number, textures: { [key: string]: Texture }, cursors: { replayHash: string, playerName: string, x: number, y: number }[], style: HeatTraceStyle): Layer {
-    const pixels = new Uint8Array((width * height) * 4)
+  // Rener The Heatmap
+  public static renderHeatmap (heatmap: SharedArrayBuffer, style: HeatTrace_Style): Layer {
+    const heatmapPixels = new Float64Array(heatmap)
 
-    const length = (style.cursor.type === 'color') ? style.cursor.colors.length : style.cursor.images.length
+    const sharedBuffer = new SharedArrayBuffer(heatmapPixels.length * 4)
+    // Each pixel have 4 values. (r, g, b, a)
 
-    cursors.forEach((cursor) => {
-      const key = (style.cursor.distribution === 'player') ? cursor.playerName : cursor.replayHash
+    const pixels = new Uint8Array(sharedBuffer)
 
-      let value = stringToNumber(key) % (length)
+    heatmapPixels.forEach((heat, index) => {
+      if (heat > 0) {
+        heat = mapRange(heat * style.heatBoost, 0, 1, 0, 1)
 
-      if (value >= length) value = length - 1
+        index = index * 4
 
-      if (style.cursor.type === 'color') {
-        fillCircle(cursor.x, cursor.y, ((width + height) / 250) * style.cursor.size).forEach((pixel) => {
-          if ((pixel.x > 0 && pixel.x < width) && (pixel.y > 0 && pixel.y < height)) {
-            const index = (pixel.x + (width * pixel.y)) * 4
+        const color = Color.getGradientColor(heat, style.colors)
 
-            pixels[index] = style.cursor.colors[value].r
-            pixels[index + 1] = style.cursor.colors[value].g
-            pixels[index + 2] = style.cursor.colors[value].b
-            pixels[index + 3] = 255
-          }
-        })
-      } else {
-        drawTexture(textures[style.cursor.images[value]], cursor.x, cursor.y).forEach((pixel) => {
-          if ((pixel.x > 0 && pixel.x < width) && (pixel.y > 0 && pixel.y < height)) {
-            const index = (pixel.x + (width * pixel.y)) * 4
-
-            pixels[index] = pixel.color.r
-            pixels[index + 1] = pixel.color.g
-            pixels[index + 2] = pixel.color.b
-            pixels[index + 3] = 255 
-          }
-        }) 
+        pixels[index] = limitValue(color.r, 0, 255) 
+        pixels[index + 1] = limitValue(color.g, 0, 255) 
+        pixels[index + 2] = limitValue(color.b, 0, 255)
+        pixels[index + 3] = limitValue(Math.round(mapRange(heat, 0, 1, style.traceOpacity[0] * 255, style.traceOpacity[1] * 255)), 0, 255) 
       }
     })
 
-    return { layer: 1, data: pixels }
+    return { layer: 1, pixels: sharedBuffer }
   }
 
-  // Combine Layers
-  public static async renderImage (format: 'png' | 'jpeg', width: number, height: number, layers: Layer[]): Promise<Uint8Array> {
+  // Render The Image
+  public static async renderImage (format: 'png' | 'jpeg' | 'raw', width: number, height: number, layers: Layer[]): Promise<SharedArrayBuffer> {
     return new Promise((resolve) => {
-      const pixels = new Uint8Array((width * height) * 4)
+      const pixels = new Uint8Array(Math.round((width * height) * 4))
 
-      layers.sort((a, b) => a.layer - b.layer).forEach((layer, index) => {
-        if (index === 0) pixels.set(layer.data, 0)
-        else {
-          for (let i = 0; i < layer.data.length; i += 4) {
-            if (layer.data[i + 3] > 0) {
-              pixels[i] = layer.data[i]
-              pixels[i + 1] = layer.data[i + 1]
-              pixels[i + 2] = layer.data[i + 2]
-            }
+      for (let i = 0; i < pixels.length; i += 4) pixels[i + 3] = 255
+
+      layers.sort((a, b) => a.layer - b.layer).forEach((layer) => {
+        const layerPixels = new Uint8Array(layer.pixels)
+
+        for (let i = 0; i < layerPixels.length; i += 4) {
+          if (layerPixels[i + 3] > 0) {
+            const maxAlpha = Math.max(pixels[i + 3], layerPixels[i + 3])
+
+            const alpha = mapRange(layerPixels[i + 3], 0, maxAlpha, 0, 1)
+
+            pixels[i] = limitValue(pixels[i] + ((layerPixels[i] - pixels[i]) * alpha), 0, 255)
+            pixels[i + 1] = limitValue(pixels[i + 1] + ((layerPixels[i + 1] - pixels[i + 1]) * alpha), 0, 255)
+            pixels[i + 2] = limitValue(pixels[i + 2] + ((layerPixels[i + 2] - pixels[i + 2]) * alpha), 0, 255)
+            pixels[i + 3] = limitValue(alpha * 255, 0, 255) 
           }
         }
       })
 
-      new Jimp(width, height, (_, image) => {
-        image.bitmap.data = Buffer.from(pixels)
+      for (let i = 0; i < pixels.length; i += 4) pixels[i + 3] = 255
 
-        if (format === 'png') image.getBuffer(Jimp.MIME_PNG, (_, data) => resolve(data))
-        else image.getBuffer(Jimp.MIME_JPEG, (_, data) => resolve(data))
-      })
-    })
-  }
-}
+      if (format === 'raw') {
+        const sharedBuffer = new SharedArrayBuffer((width * height) * 4)
 
-// Strin To Number
-function stringToNumber (string: string): number {
-  let count: number = 0
+        new Uint8Array(sharedBuffer).set(pixels, 0)
 
-  for (let i = 0; i < string.length; i++) count += string.charCodeAt(i) 
+        resolve(sharedBuffer)
+      } else {
+        new Jimp(width, height, (_, image) => {
+          image.bitmap.data = Buffer.from(pixels)
 
-  return count
-}
+          if (format === 'png') {
+            image.getBuffer(Jimp.MIME_PNG, (_, data) => {
+              const sharedBuffer = new SharedArrayBuffer(data.length)
 
-// Fill A Circle
-function fillCircle(centerX: number, centerY: number, radius: number): { x: number, y: number }[] {
-  const pixels: { x: number, y: number }[] = []
+              new Uint8Array(sharedBuffer).set(data, 0)
 
-  for (let y = -radius; y <= radius; y++) {
-    for (let x = -radius; x <= radius; x++) {
-      if (x * x + y * y <= radius * radius) pixels.push({ x: Math.round(centerX + x), y: Math.round(centerY + y) })
-    }
-  }
+              resolve(sharedBuffer)
+            })
+          } else {
+            image.getBuffer(Jimp.MIME_JPEG, (_, data) => {
+              const sharedBuffer = new SharedArrayBuffer(data.length)
 
-  return pixels
-}
+              new Uint8Array(sharedBuffer).set(data, 0)
 
-// Draw A Texture
-function drawTexture (texture: Texture, x: number, y: number): { color: Color.RGB, x: number, y: number }[] {
-  const pixels: { color: Color.RGB, x: number, y: number }[] = []
-
-  const data = new Uint8Array(texture.data)
-
-  for (let currentX = 0; currentX < texture.width; currentX++) {
-    for (let currentY = 0; currentY < texture.height; currentY++) {
-      const index = (currentX + (texture.width * currentY)) * 4
-
-      if (data[index + 3] > 0) {
-        pixels.push({
-          color: { r: data[index], g: data[index + 1], b: data[index + 2] },
-
-          x: Math.round(x + currentX),
-          y: Math.round(y + currentY) 
+              resolve(sharedBuffer)
+            })
+          }
         })
-      } 
-    }
+      }
+    }) 
   }
 
-  return pixels
+  // Put A Texture
+  private static _putTexture (pixels: Uint8Array, width: number, height: number, texture: Texture, x: number, y: number, opacity: number): void {
+    const texturePixels = new Uint8Array(texture.data)
+
+    let pixelIndex: number = 0
+    
+    for (let currentY = y; currentY < y + texture.height; currentY++) {
+      for (let currentX = x; currentX < x + texture.width; currentX++) {
+        if ((currentX >= 0 && currentX < width) && (currentY >= 0 && currentY < height)) {
+          const index = (currentX + (currentY * width)) * 4
+
+          pixels[index] = limitValue(texturePixels[pixelIndex], 0, 255) 
+          pixels[index + 1] = limitValue(texturePixels[pixelIndex + 1], 0, 255) 
+          pixels[index + 2] = limitValue(texturePixels[pixelIndex + 2], 0, 255) 
+          pixels[index + 3] = limitValue(opacity, 0, 255) 
+        }
+
+        pixelIndex += 4
+      }
+    }
+  }
 }
 
 // Layer
 interface Layer {
   layer: number,
 
-  data: Uint8Array 
+  pixels: SharedArrayBuffer // Uint8Array
 }
-import { RGBTuple } from 'discord.js'
 
 export { Render, Layer }
 
+import { HeatTrace_Style } from '../../Types/HeatTrace_Style'
+
+import limitValue from '../Tools/LimitValue'
 import mapRange from '../Tools/MapRange'
 import Color from '../Tools/Color'
 
 import { Texture } from '../MainThread/Managers/TextureManager'
-import { HeatTraceStyle } from '../MainThread/Core'

@@ -1,366 +1,166 @@
-import ffmpegPath from 'ffmpeg-static'
-import ffmpeg from 'fluent-ffmpeg'
 import path from 'path'
-import os from 'os'
 import fs from 'fs'
 
 // HeatTrace Core
-class HeatTraceCore {
-  private _state: 'none' | 'initializing' | 'initialized' = 'none'
-  private _options!: HeatTraceOptions
+export default class {
+  private _state: 'none' | 'initializing' | 'initialized' | 'terminating' = 'none'
+  private _options!: HeatTrace_Options
+
+  public WorkerManager!: WorkerManager
+  public TextureManager!: TextureManager
+  public ReplayManager!: ReplayManager
 
   private _cursorsData: CursorData[] = []
-  
-  private _frameInterval: number = 0
+
   private _frames: number = 0
+  private _frameInterval: number = 0
 
-  public WorkerManager = new WorkerManager()
-  public TextureManager = new TextureManager()
+  constructor (options: HeatTrace_Options_Optional) {
+    this._options = getCompleteOptions(options)
 
-  constructor (options?: HeatTraceOptions_Optional) {
-    if (options === undefined) options = {}
-
-    const style = options.style || {}
-
-    const cursor = style.cursor || {}
-    const background = style.background || {}
-
-    this._options = {
-      width: options.width || 512,
-      height: options.height || 384, 
-
-      style: {
-        heatBoost: style.heatBoost || 1.75,
-
-        traceSize: style.traceSize || 1,
-        traceLength: style.traceLength || Infinity,
-
-        cursor: {
-          type: cursor.type || 'color',
-          distribution: cursor.distribution || 'player',
-
-          size: cursor.size || 1,
-
-          colors: [
-            { r: 214, g: 40, b: 40 },
-            { r: 247, g: 127, b: 0 },
-            { r: 252, g: 191, b: 73 },
-            { r: 234, g: 226, b: 183 }
-          ],
-          images: cursor.images || []
-        },
-
-        background: {
-          type: background.type || 'none',
-
-          color: { r: 0, g: 0, b: 0 },
-          image: ''
-        },
-
-        colors: style.colors || [
-          { r: 0, g: 0, b: 0 },
-          { r: 106, g: 4, b: 15 },
-          { r: 208, g: 0, b: 0 },
-          { r: 232, g: 93, b: 4 },
-          { r: 250, g: 163, b: 7 },
-          { r: 255, g: 255, b: 255 }
-        ] 
-      },
-
-      imageFormat: options.imageFormat || 'png',
-
-      videoFPS: options.videoFPS || 30,
-      videoSpeed: options.videoSpeed || 1,
-
-      threads: os.cpus().length / 2 
-    }
+    checkOptions(this._options)
 
     this.WorkerManager = new WorkerManager()
+    this.TextureManager = new TextureManager(this)
+    this.ReplayManager = new ReplayManager(this)
   }
 
   public get state () {return this._state}
   public get options () {return this._options}
+  public get cursorsData () {return this._cursorsData}
+  public get frameInterval () {return this._frameInterval}
+  public get frames () {return this._frames}
 
   // Initialize HeatTrace
-  public async initialize (): Promise<{ error: boolean, message?: string }> {
+  public async initialize (progress?: (info: { type: 'loadingTextures' | 'startingWorkers' }) => any): Promise<{ error: boolean, message?: string }> {
     if (this._state !== 'none') throw new Error(`Cannot Initialize HeatTrace: ${this._state}`)
 
     this._state = 'initializing'
 
-    const cursorSize = ((this._options.width + this.options.height) / 250) * this._options.style.cursor.size
+    if (progress !== undefined) progress({ type: 'startingWorkers' })
 
-    for (let filePath of this._options.style.cursor.images) {
-      const result = await this.TextureManager.addTexture(filePath, 'min', cursorSize, cursorSize)
+    await this.WorkerManager.startWorkers(this._options.threads, this.TextureManager.textures)
 
-      if (result.error) return { error: true, message: 'Failed To Load Cursor Image' }
-    }
+    if (progress !== undefined) progress({ type: 'loadingTextures' })
 
-    await this.WorkerManager.startWorkers(this._options.threads)
-    
+    await this.TextureManager.loadTextures()
+
     this._state = 'initialized'
-    
+
     return { error: false }
   }
 
+  // Terminate HeatTrace
+  public async terminate (): Promise<void> {
+    if (this._state !== 'initialized') throw new Error(`Cannot Load Terminate HeatTrace: ${this._state}`)
+
+    this._state = 'terminating'
+
+    await this.WorkerManager.stopWorkers()
+
+    this.TextureManager.unloadTextures()
+
+    this._state = 'none'
+  }
+
   // Load Replays
-  public async loadReplays (replaysData: Buffer[], callback?: (info: { total: number, loaded: number }) => any): Promise<{ error: boolean, message?: string, data?: { failed: number }}> {
+  public async loadReplays (replays: Buffer[], progress?: (info: { total: number, finished: number }) => any): Promise<{ error: boolean, message?: string, data?: { loaded: number, failed: number }}> {
     if (this._state !== 'initialized') throw new Error(`Cannot Load Replays: ${this._state}`)
 
-    const jobs: JobData[] = replaysData.map((replayData) => {
-      return {
-        type: 'loadReplays',
+    const result = this.
 
-        data: replayData
+    const jobs: Job_Data[] = replays.map((replay) => {
+      return {
+        type: 'loadReplay',
+
+        data: replay,
+
+        maxCursorTravelDistance: this._options.maxCursorTravelDistance
       }
     })
 
-    const results = await this.WorkerManager.createBatch('loadReplays', jobs, (info) => {
-      if (callback !== undefined) callback({ total: info.total, loaded: info.finished })
-    }) as JobResult_Combined_LoadReplays[]
+    const results = await this.WorkerManager.createBatch(jobs, progress) as Job_Result_LoadReplay[]
 
-    const cursorsData: { replayHash: string, playerName: string, xPositions: Float64Array, yPositions: Float64Array, timeStamps: Float64Array }[] = []
+    let beatmapHash!: string
+    let maxLength: number = 0
 
-    let beatmapHash: undefined | string = undefined 
-    let length: number = 0
     let failed: number = 0
+
+    const cursorsData: CursorData[] = []
 
     for (let result of results) {
       if (result.error) failed++
       else {
         if (beatmapHash === undefined) beatmapHash = result.data!.beatmapHash
         else if (result.data!.beatmapHash !== beatmapHash) return { error: true, message: 'Found Replays With Different Beatmaps' }
-  
-        if (result.data!.timeStamps[result.data!.timeStamps.length - 1] > length) length = result.data!.timeStamps[result.data!.timeStamps.length - 1]
 
-        cursorsData.push({ replayHash: result.data!.replayHash, playerName: result.data!.playerName, xPositions: result.data!.xPositions, yPositions: result.data!.yPositions, timeStamps: result.data!.timeStamps })
+        const length = result.data!.cursorData.timeStamps[result.data!.cursorData.timeStamps.length - 1]
+
+        if (length > maxLength) maxLength = length 
+
+        cursorsData.push(result.data!.cursorData)
       }
     }
 
-    this._cursorsData = cursorsData 
+    this._cursorsData = cursorsData
 
-    this._frameInterval = (1000 / this._options.videoFPS) / this.options.videoSpeed
-    this._frames = Math.round(length / this._frameInterval)
+    this._frameInterval = (1000 / this._options.videoFPS) / this._options.videoSpeed
+    this._frames = Math.round(maxLength / this._frameInterval)
 
-    return { error: false, data: { failed }}
+    return { error: false, data: { loaded: replays.length, failed }}
   }
 
   // Render An Image
-  public async renderImage (progress?: (info: { type: 'calculatingHeatmap' | 'rendering', total: number, finished: number }) => any): Promise<Uint8Array> {
-    if (this._state !== 'initialized') throw new Error(`Cannot Calculate An Image: ${this._state}`)
+  public async renderImage (frame?: undefined | number, progress?: (info: { type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage', total: number, finished: number }) => any): Promise<Uint8Array> {
+    if (this._state !== 'initialized') throw new Error(`Cannot Render An Image: ${this._state}`)
 
-    const heatmap = await this._calculateHeatmap(0, Infinity, (info) => {
-      if (progress !== undefined) progress({ type: 'calculatingHeatmap', total: info.total, finished: info.finished })
-    })
+    checkValues([
+      { name: 'frame', value: frame, min: 1, max: this._frames }
+    ])
 
-    if (progress !== undefined) progress({ type: 'rendering', total: 1, finished: 0 })
-
-    const results = await this.WorkerManager.createBatch('renderImage', [{
-      type: 'renderHeatmap',
-
+    return new Uint8Array((await this.WorkerManager.createBatch([{
+      type: 'renderImage',
+      
       format: this._options.imageFormat,
 
       width: this._options.width,
       height: this._options.height,
-
-      heatmap: heatmap.data,
       
-      style: this._options.style
-    }]) as JobResult_Combined_RenderImage[]
-
-    if (progress !== undefined) progress({ type: 'rendering', total: 1, finished: 1 })
-
-    return new Uint8Array(results[0].data) 
+      layers: await renderFrame(this, defaultValue(frame, this._frames), progress)
+    }]) as Job_Result_RenderImage[])[0].data)
   }
 
   // Render A Video
-  public async renderVideo (dataPath: string, startFrame: number, progress?: (info: { type: 'calculatingHeatmap' | 'rendering' | 'encoding', total: number, finished: number }) => any): Promise<string> {
-    if (this._state !== 'initialized') throw new Error(`Cannot Render A Video: ${this._state}`)
+  public async renderVideo (cachePath: string, start?: undefined | number, end?: undefined | number, progress?: (info: { total: number, finished: number }) => any): Promise<void> {
+    if (this._state !== 'initialized') throw new Error(`Cannot Render An Image: ${this._state}`)
 
-    if (startFrame > this._frames) throw new Error(`Start Frame Is Out Of Range: ${startFrame} / ${this._frames}`)
+    start = defaultValue(start, 1)
+    end = defaultValue(end, this._frames)
 
-    return new Promise(async (resolve) => {
-      if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath)
+    checkValues([
+      { name: 'start', value: start, min: 1, max: Math.min(end, this._frames) },
+      { name: 'end', value: end, min: Math.max(defaultValue(start, 1), 1), max: this._frames }
+    ])
+  
+    for (let i = defaultValue(start, 1); i < defaultValue(end, this._frames); i++) {
 
-      if (!fs.existsSync(path.join(dataPath, 'Frames'))) fs.mkdirSync(path.join(dataPath, 'Frames')) 
-
-      for (let i = startFrame; i < this._frames; i++) {
-        if (progress !== undefined) progress({ type: 'calculatingHeatmap', total: this._frames, finished: i })
-
-        const heatmap = await this._calculateHeatmap(0, i * this._frameInterval)
-
-        if (progress !== undefined) progress({ type: 'rendering', total: this._frames, finished: i + 1 })
-
-        const results = await this.WorkerManager.createBatch('renderImage', [
-          {
-            type: 'renderHeatmap',
-
-            format: 'png',
-
-            width: this._options.width,
-            height: this._options.height,
-
-            heatmap: heatmap.data,
-      
-            style: this._options.style
-          },
-          {
-            type: 'renderCursor',
-
-            format: 'png',
-
-            width: this._options.width,
-            height: this._options.height,
-
-            textures: this.TextureManager.textures,
-
-            cursors: heatmap.cursors,
-
-            style: this._options.style
-          }
-        ]) as JobResult_Combined_RenderImage[]
-
-        fs.writeFileSync(path.join(dataPath, 'Frames', `${i.toString().padStart(5, '0')}.png`), new Uint8Array(results[0].data))
-      }
-
-      if (progress !== undefined) progress({ type: 'encoding', total: this._frames, finished: this._frames })
-
-      ffmpeg(path.join(dataPath, 'Frames', '%05d.png'))
-        .setFfmpegPath(ffmpegPath!)
-
-        .output(path.join(dataPath, 'Result.mp4')) 
-
-        .inputFPS(this._options.videoFPS)
-        .outputOptions('-pix_fmt yuv420p')
-        .outputOptions(`-threads ${this._options.threads}`)
-
-        .once('end', () => resolve(path.join(dataPath, 'Result.mp4')))
-
-        .run()
-    })
-  }
-
-  // Calculate The Heatmap
-  private async _calculateHeatmap (start: number, end: number, progress?: (info: { total: number, finished: number }) => any): Promise<{ data: SharedArrayBuffer, cursors: { replayHash: string, playerName: string, x: number, y: number }[] }> {
-    if (this._state !== 'initialized') throw new Error(`Cannot Calculate The Heatmap: ${this._state}`)
-
-    const jobs: JobData[] = this._cursorsData.map((cursorData) => {
-      return {
-        type: 'calculateHeatmaps',
-
-        width: this._options.width,
-        height: this._options.height,
-
-        start,
-        end,
-
-        cursorData,
-
-        style: this.options.style
-      }
-    })
-
-    const results = await this.WorkerManager.createBatch('calculateHeatmaps', jobs, (info) => {
-      if (progress !== undefined) progress(info)
-    }) as JobResult_Combined_CalculateHeatmaps[]
-
-    return {
-      data: results[0].data,
-
-      cursors: results[0].cursors
-    } 
+    }
   }
 }
 
-// HeatTrace Options
-interface HeatTraceOptions {
-  width: number,
-  height: number,
+import { HeatTrace_Options, HeatTrace_Options_Optional } from '../../Types/HeatTrace_Options' 
+import { Job_Result_LoadReplay, Job_Result_RenderImage } from '../../Types/Job_Result'
+import { Job_Data } from '../../Types/Job_Data'
 
-  style: HeatTraceStyle,
+import defaultValue from '../Tools/DefaultValue'
+import checkValues from '../Tools/CheckValues'
 
-  imageFormat: 'png' | 'jpeg',
-
-  videoFPS: number,
-  videoSpeed: number,
-
-  threads: number
-}
-
-// HeatTrace Options Optional
-interface HeatTraceOptions_Optional {
-  width?: number,
-  height?: number,
-
-  style?: HeatTraceStyle_Optional,
-
-  imageFormat?: 'png' | 'jpeg',
-
-  videoFPS?: number,
-  videoSpeed?: number,
-
-  threads?: number
-}
-
-// HeatTrace Style
-interface HeatTraceStyle {
-  heatBoost: number,
-
-  traceSize: number,
-  traceLength: number,
-
-  cursor: {
-    type: 'none' | 'color' | 'image',
-    distribution: 'player' | 'replay',
-
-    size: number,
-
-    colors: Color.RGB[],
-    images: string[]
-  },
-
-  background: {
-    type: 'none' | 'color' | 'image',
-
-    color: Color.RGB,
-    image: string
-  },
-
-  colors: Color.RGB[]
-}
-
-// HeatTrace Style Optional
-interface HeatTraceStyle_Optional {
-  heatBoost?: number,
-
-  traceSize?: number,
-  traceLength?: number,
-
-  cursor?: {
-    type?: 'none' | 'color' | 'image',
-    distribution?: 'player' | 'replay'
-
-    size?: number,
-
-    colors?: Color.RGB[],
-    images?: string[]
-  },
-
-  background?: {
-    type?: 'none' | 'color' | 'image',
-
-    color?: Color.RGB[],
-    image?: string
-  }
-
-  colors?: Color.RGB[],
-}
-
-export { HeatTraceCore, HeatTraceOptions, HeatTraceOptions_Optional, HeatTraceStyle, HeatTraceStyle_Optional }
-
-import Color from '../Tools/Color'
-
-import { JobResult_Combined_LoadReplays, JobResult_Combined_CalculateHeatmaps, JobResult_Combined_RenderImage } from '../ChildThread/Types/JobResult'
+import { checkOptions, getCompleteOptions } from './Options'
 import { TextureManager } from './Managers/TextureManager'
 import { WorkerManager } from './Managers/WorkerManager'
-import { JobData } from '../ChildThread/Types/JobData'
-import { CursorData } from '../ChildThread/Heatmap'
+import ReplayManager from './Managers/ReplayManager'
+import ReplayManager from './Managers/ReplayManager'
+import { CursorData } from '../ChildThread/CursorData'
+import ReplayManager from './Managers/ReplayManager'
+import renderFrame from './RenderFrame'
+

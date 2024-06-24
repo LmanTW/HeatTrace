@@ -4,7 +4,7 @@ namespace Color {
 
   // Get Gradient Color 
   export function getGradientColor (value: number, colors: Color.RGB[]): Color.RGB {
-    // Don't really know how this works, borrowed this from ChatGPT lol.
+    // Don't really know how this works, I just borrowed this from ChatGPT.
 
     const step = 1 / (colors.length - 1)
     
@@ -17,21 +17,16 @@ namespace Color {
 
     const t = (value % step) / step
 
-    return interpolateColor(startColor, endColor, t)
+    let r = Math.round(startColor.r + (endColor.r - startColor.r) * t)
+    let g = Math.round(startColor.g + (endColor.g - startColor.g) * t)
+    let b = Math.round(startColor.b + (endColor.b - startColor.b) * t)
+
+    return {
+      r: Math.min(r, 255),
+      g: Math.min(g, 255),
+      b: Math.min(b, 255)
+    }
   }
-}
-
-// Interpolate Color
-function interpolateColor(color1: Color.RGB, color2: Color.RGB, value: number): Color.RGB {
-  let r = Math.round(color1.r + (color2.r - color1.r) * value)
-  let g = Math.round(color1.g + (color2.g - color1.g) * value)
-  let b = Math.round(color1.b + (color2.b - color1.b) * value)
-
-  if (r > 255) r = 255
-  if (g > 255) g = 255
-  if (b > 255) b = 255
-
-  return { r, g, b }
 }
 
 export default Color

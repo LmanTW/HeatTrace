@@ -1,91 +1,121 @@
 import worker from 'worker_threads'
 
-import renderImage from './RenderImage'
+import { Job_Result } from '../../Types/Job_Result'
+import { Message } from '../../Types/Message'
+
+import { getCursorData } from './CursorData'
+import loadTexture from './LoadTexture'
 import { loadReplay } from './Replay'
+import { Render } from './Render'
+import Heatmap from './Heatmap'
 
 // Start The Worker
-function startWorker () {
+export default () => {
   worker.parentPort!.on('message', async (msg: Message) => {
     if (msg.type === 'assignJob') {
-      const data = msg.data
-      let result!: JobResult
+      const jobData = msg.jobData
+      let result!: Job_Result
 
-      if (data.type === 'loadReplays') {
-        const replay = await loadReplay(data.data)
+      if (jobData.type === 'loadTexture') {
+        const data = await loadTexture(
+          jobData.filePath,
 
-        if (replay.gameMode !== 'standard') result = { type: 'loadReplays', error: true, message: 'Unsupport Game Mode' }
-        else if (replay.cursor === undefined) result = { type: 'loadReplays', error: true, message: 'Failed To Decompress Cursor Data' }
-        else result = { type: 'loadReplays', error: false, data: { beatmapHash: replay.beatmapHash, replayHash: replay.replayHash, playerName: replay.playerName, xPositions: replay.cursor.xPositions, yPositions: replay.cursor.yPositions, timeStamps: replay.cursor.timeStamps }}
-      } else if (data.type === 'calculateHeatmaps') {
-        const heatmap = Heatmap.calculateHeatmap(data.width, data.height, data.start, data.end, data.cursorData, data.style)
+          jobData.scaleType,
+          jobData.width,
+          jobData.height,
 
-        const sharedBuffer = new SharedArrayBuffer(heatmap.data.length * 4)
-
-        new Uint32Array(sharedBuffer).set(heatmap.data, 0)
+          jobData.effect
+        )
 
         result = {
-          type: 'calculateHeatmaps',
+          type: 'loadTexture',
 
-          width: heatmap.width,
-          height: heatmap.height,
+          error: data.error,
+          message: data.message,
 
-          data: sharedBuffer,
+          data: {
+            filePath: jobData.filePath,
 
-          replayHash: heatmap.replayHash,
-          playerName: heatmap.playerName,
-
-          cursorX: heatmap.cursorX,
-          cursorY: heatmap.cursorY 
+            texture: data.texture!
+          }
         }
-      } else if (data.type === 'renderHeatmap' || data.type === 'renderCursor') {
-        let layer!: Layer
-        
-        if (data.type === 'renderHeatmap') layer = Render.renderHeatmap(data.width, data.height, new Float64Array(data.heatmap), data.style)
-        else layer = Render.renderCursor(data.width, data.height, data.textures, data.cursors, data.style)
+      } else if (jobData.type === 'loadReplay') {
+        const replay = await loadReplay(jobData.data)
 
-        const sharedBuffer = new SharedArrayBuffer(layer.data.length)
+        if (replay.gameMode !== 'standard') result = { type: 'loadReplay', error: true, message: 'Unsupport Game Mode' }
+        else if (replay.cursor === undefined) result = { type: 'loadReplay', error: true, message: 'Failed To Decompress Cursor Data' }
+        else {
+          result = {
+            type: 'loadReplay',
 
-        new Uint8Array(sharedBuffer).set(layer.data, 0)
+            error: false,
 
+            data: {
+              beatmapHash: replay.beatmapHash,
+
+              cursorData: getCursorData(replay.playerName, replay.replayHash, replay.cursor, jobData.maxCursorTravelDistance)
+            }
+          }
+        }
+      } else if (jobData.type === 'calculateHeatmap') {
+        result = {
+          type: 'calculateHeatmap',
+
+          cursorInfo: Heatmap.calculateHeatmap(
+            jobData.width, jobData.height,
+
+            jobData.start, jobData.end,
+
+            jobData.heatmap,
+            jobData.cursorData,
+
+            jobData.style
+          )
+        }
+      } else if (jobData.type === 'normalizeHeatmap') {
+        result = {
+          type: 'normalizeHeatmap',
+
+          normalizedHeatmap: Heatmap.normalizeHeatmap(jobData.heatmap)
+        }
+      } else if (jobData.type === 'renderLayer') {
+        const layerData = jobData.layerData
+
+        if (layerData.type === 'background') {
+          result = {
+            type: 'renderLayer',
+
+            layer: Render.renderBackground(layerData.width, layerData.height, layerData.textures, jobData.style)
+          }
+        } else if (layerData.type === 'heatmap') {
+          result = {
+            type: 'renderLayer',
+
+            layer: Render.renderHeatmap(layerData.heatmap, jobData.style)
+          }
+        }
+      } else if (jobData.type === 'renderImage') {
         result = {
           type: 'renderImage',
 
-          format: data.format,
-
-          width: data.width,
-          height: data.height,
-
-          layer: layer.layer,
-
-          data: sharedBuffer 
+          data: await Render.renderImage(jobData.format, jobData.width, jobData.height, jobData.layers) 
         }
       }
 
-      sendMessage({ type: 'jobFinished', batchID: msg.batchID, jobID: msg.jobID, data: result })
-    } else if (msg.type === 'addResult') BatchBuffer.addResult(msg.batchID, msg.data)
+      sendMessage({
+        type: 'jobFinished',
 
-    else if (msg.type === 'request') {
-      const request = msg.data
-      let response: any = undefined
+        batchID: msg.batchID,
 
-      if (request.type === 'createBatchBuffer') BatchBuffer.createBuffer(request.batchID, request.batchType, request.total)
-
-      sendMessage({ type: 'response', data: response, requestID: msg.requestID })
-    }
+        jobResult: result
+      })
+    } 
   })
 
-  sendMessage({ type: 'ready' })
+  sendMessage({ type: 'readied' })
 }
 
-// Send Message To The Main Thread
+// Send A Message
 function sendMessage (message: Message): void {
   worker.parentPort!.postMessage(message)
 }
-
-export { startWorker, sendMessage }
-
-import { JobResult } from './Types/JobResult'
-import { Message } from './Types/Message'
-import { Render, Layer } from './Render'
-import BatchBuffer from './BatchBuffer'
-import { Heatmap } from './Heatmap'

@@ -5,4 +5,3 @@ node_modules
 __MACOSX
 
 Scripts/Test/Replays/*
-Scripts/Test/Cache/*
