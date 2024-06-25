@@ -4,7 +4,7 @@ export default class {
   public static calculateHeatmap (width: number, height: number, start: number, end: number, heatmap: SharedArrayBuffer, cursorData: CursorData, style: HeatTrace_Style): CursorInfo {
     // Calculate the cursor data and add the "heat value" onto the heatmap.
     
-    const pixels = new Uint32Array(heatmap) 
+    const pixels = new Uint32Array(width * height)
 
     const traceSize = Math.round(((width + height) / 900) * style.traceSize)
 
@@ -35,7 +35,7 @@ export default class {
                 for (let y = pixel.y - start; y <= pixel.y + end; y++) {
                   if ((x >= 0 && x < width) && (y >= 0 && y < height)) {
                     if (!changed.has(`${x},${y}`)) {
-                      Atomics.add(pixels, x + (y * width), 1)
+                      pixels[x + (y * width)]++
   
                       changed.set(`${x},${y}`, true)
                     }
@@ -49,7 +49,7 @@ export default class {
                 for (let y = pixel.y - radius; y <= pixel.y + radius; y++) {
                   if ((x >= 0 && x < width) && (y >= 0 && y < height)) {
                     if (!changed.has(`${x},${y}`)) {
-                      Atomics.add(pixels, x + (y * width), 1)
+                      pixels[x + (y * width)]++
   
                       changed.set(`${x},${y}`, true)
                     }
@@ -58,11 +58,17 @@ export default class {
               }
             } 
           } else {
-            if ((pixel.x >= 0 && pixel.x < width) && (pixel.y >= 0 && pixel.y < height)) Atomics.add(pixels, pixel.x + (pixel.y * width), 1)
+            if ((pixel.x >= 0 && pixel.x < width) && (pixel.y >= 0 && pixel.y < height)) pixels[pixel.x + (pixel.y * width)]++
           }
         })
       } else if (cursorData.timeStamps[i] > end) break
     }
+
+    const sharedPixels = new Uint32Array(heatmap)
+
+    pixels.forEach((heat, index) => {
+      if (heat > 0) Atomics.add(sharedPixels, index, heat)
+    }) 
 
     return { playerName: cursorData.playerName, replayHash: cursorData.replayHash, x: cursorX, y: cursorY }
   }

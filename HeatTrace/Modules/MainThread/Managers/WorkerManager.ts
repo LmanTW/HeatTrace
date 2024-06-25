@@ -71,7 +71,7 @@ class WorkerManager {
     for (let workerID of Object.keys(this._workers)) {
       const worker = this._workers[workerID]
 
-      if (worker.state === 'readied') {
+      if (worker.state === 'idle') {
         const job = this._getJob()
 
         if (job === undefined) break
@@ -123,7 +123,7 @@ class WorkerManager {
 
       worker.worker.on('message', (msg: Message) => {
         if (msg.type === 'readied') {
-          worker.state = 'readied'
+          worker.state = 'idle'
 
           resolve()
         }
@@ -141,7 +141,7 @@ class WorkerManager {
             delete this._batches[msg.batchID]
           }
 
-          worker.state = 'readied'
+          worker.state = 'idle'
 
           this._assignJobs()
         }
@@ -152,7 +152,7 @@ class WorkerManager {
 
 // Worker
 interface Worker {
-  state: 'starting' | 'readied' | 'working',
+  state: 'starting' | 'idle' | 'working',
 
   worker: worker.Worker
 }
