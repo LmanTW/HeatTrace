@@ -58,6 +58,15 @@ interface Job_Data_RenderLayer {
     type: 'heatmap',
 
     heatmap: SharedArrayBuffer
+  } | {
+    type: 'cursors',
+
+    width: number,
+    height: number,
+
+    cursors: CursorInfo[],
+
+    textures: { [key: string]: Texture }
   },
 
   style: HeatTrace_Style 
@@ -87,6 +96,6 @@ export { Job_Data }
 import { HeatTrace_Style } from './HeatTrace_Style'
 
 import { TextureEffects } from '../Modules/MainThread/Managers/TextureManager'
+import { CursorData, CursorInfo } from '../Modules/ChildThread/CursorData'
 import { Texture } from '../Modules/MainThread/Managers/TextureManager'
-import { CursorData } from '../Modules/ChildThread/CursorData'
 import { Layer } from '../Modules/ChildThread/Render'

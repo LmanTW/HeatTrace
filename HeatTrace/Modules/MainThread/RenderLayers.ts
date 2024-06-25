@@ -33,6 +33,25 @@ export default async (Core: HeatTrace_Core, frame: number, progress?: (info: { t
     })
   }
 
+  if (Core.options.style.cursor.type !== 'none') {
+    jobs.push({
+      type: 'renderLayer',
+
+      layerData: {
+        type: 'cursors',
+
+        width: Core.options.width,
+        height: Core.options.height,
+
+        cursors: heatmap.cursorsInfo,
+
+        textures: Core.TextureManager.textures 
+      },
+
+      style: Core.options.style
+    })
+  }
+
   const results = await Core.WorkerManager.createBatch(jobs, (info) => {
     if (progress !== undefined) progress({ type: 'renderingLayers', total: info.total, finished: info.finished })
   }) as Job_Result_RenderLayer[]

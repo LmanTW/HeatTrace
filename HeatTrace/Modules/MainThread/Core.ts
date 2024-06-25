@@ -124,6 +124,8 @@ export default class {
           currentFrame++
           frameQueue++ 
 
+          console.log(frame)
+
           this.WorkerManager.createJob({
             type: 'renderImage',
 

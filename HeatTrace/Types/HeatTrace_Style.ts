@@ -16,7 +16,9 @@ interface HeatTrace_Style {
     opacity: number
 
     colors: Color.RGB[],
-    images: string[]
+    images: string[],
+
+    imageAlign: 'start' | 'center'
   },
 
   background: {
@@ -25,7 +27,7 @@ interface HeatTrace_Style {
     brightness: number,
 
     color: Color.RGB,
-    image: string 
+    image: string,
   } 
 }
 

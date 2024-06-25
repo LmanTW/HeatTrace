@@ -93,6 +93,12 @@ export default () => {
 
             layer: Render.renderHeatmap(layerData.heatmap, jobData.style)
           }
+        } else if (layerData.type === 'cursors') {
+          result = {
+            type: 'renderLayer',
+
+            layer: Render.renderCursors(layerData.width, layerData.height, layerData.cursors, layerData.textures, jobData.style)
+          }
         }
       } else if (jobData.type === 'renderImage') {
         result = {

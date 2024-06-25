@@ -20,7 +20,7 @@ export default async (filePath: string, scaleType: 'min' | 'max', width: number,
             pixels[i] = image.bitmap.data[i]
             pixels[i + 1] = image.bitmap.data[i + 1]
             pixels[i + 2] = image.bitmap.data[i + 2]
-            pixels[i + 3] = 255
+            pixels[i + 3] = image.bitmap.data[i + 3]
 
             if (effects.brightness !== undefined) {
               pixels[i] = limitValue(pixels[i] - (pixels[i] * (1 - effects.brightness)), 0, 255)

@@ -1,6 +1,3 @@
-import Jimp from 'jimp'
-import fs from 'fs'
-
 // Texture Manager
 class TextureManager {
   private _Core!: HeatTrace_Core
@@ -20,7 +17,7 @@ class TextureManager {
     const style = this._Core.options.style
 
     if (this._Core.options.style.cursor.type === 'image') {
-      const cursorSize = ((this._Core.options.width + this._Core.options.height) / 350) * style.cursor.size
+      const cursorSize = ((this._Core.options.width + this._Core.options.height) / 50) * style.cursor.size
 
       for (let filePath of style.cursor.images) {
         jobs.push({
