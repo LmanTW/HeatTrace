@@ -113,40 +113,44 @@ export default class {
       for (let i = start; i < end; i++) {
         if (progress !== undefined) progress({ type: 'renderingFrames', total: end - start, finished: i - start })
 
-        const image = new Uint8Array((await this.WorkerManager.createBatch([
-          {
-            type: 'renderImage',
-          
-            format: 'png',
+        const frame = i
 
-            width: this._options.width,
-            height: this._options.height,
-  
-            layers: await renderLayers(this, i)
+        this.WorkerManager.createJob({
+          type: 'renderImage',
+
+          format: 'png',
+
+          width: this._options.width,
+          height: this._options.height,
+
+          layers: await renderLayers(this, i)
+        }).then((result) => {
+          result = result as Job_Result_RenderImage
+
+          fs.writeFileSync(path.join(cachePath, 'Frames', `${i.toString().padStart(5, '0')}.png`), new Uint8Array(result.data))
+
+          if (frame === end) {
+            if (progress !== undefined) progress({ type: 'encodingVideo', total: 0, finished: 0 })
+
+            ffmpeg(path.join(cachePath, 'Frames', '%05d.png'))
+              .setFfmpegPath(ffmpegPath!)
+
+              .output(path.join(cachePath, 'Result.mp4')) 
+
+              .inputFPS(this._options.videoFPS)
+              .outputOptions('-pix_fmt yuv420p')
+              .outputOptions(`-threads ${this._options.threads}`)
+
+              .once('end', () => {
+                if (progress !== undefined) progress({ type: 'encodingVideo', total: 0, finished: 0 })
+
+                resolve(path.join(cachePath, 'Result.mp4'))
+              })
+
+              .run()
           }
-        ]) as Job_Result_RenderImage[])[0].data)
-
-        fs.writeFileSync(path.join(cachePath, 'Frames', `${i.toString().padStart(5, '0')}.png`), image)
-      }
-
-      if (progress !== undefined) progress({ type: 'encodingVideo', total: 0, finished: 0 })
-
-      ffmpeg(path.join(cachePath, 'Frames', '%05d.png'))
-        .setFfmpegPath(ffmpegPath!)
-
-        .output(path.join(cachePath, 'Result.mp4')) 
-
-        .inputFPS(this._options.videoFPS)
-        .outputOptions('-pix_fmt yuv420p')
-        .outputOptions(`-threads ${this._options.threads}`)
-
-        .once('end', () => {
-          if (progress !== undefined) progress({ type: 'encodingVideo', total: 0, finished: 0 })
-
-          resolve(path.join(cachePath, 'Result.mp4'))
         })
-
-        .run() 
+      }
     })
   }
 }

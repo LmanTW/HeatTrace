@@ -4,15 +4,17 @@ type Message = {
 } | {
   type: 'assignJob',
 
-  batchID: string,
+  batchID?: string,
 
   jobID: string,
   jobData: Job_Data
 } | {
   type: 'jobFinished',
 
-  batchID: string,
-
+  batchID?: string,
+  // Possibly undefined if the job is not in a batch.
+  
+  jobID: string,
   jobResult: Job_Result
 }
 

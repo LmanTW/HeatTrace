@@ -3,9 +3,9 @@ import worker from 'worker_threads'
 // Worker Manager
 class WorkerManager {
   private _workers: { [key: string]: Worker } = {}
-  private _requests: { [key: string]: (response: any) => any } = {}
 
   private _batches: { [key: string]: Batch } = {}
+  private _jobs: { [key: string]: Job } = {}
 
   // Start Workers
   public async startWorkers (amount: number, textures: { [key: string]: Texture }): Promise<void> {
@@ -64,6 +64,19 @@ class WorkerManager {
         this._assignJobs()
       } 
     })
+  } 
+
+  // Create A Job
+  public async createJob (job: Job_Data): Promise<Job_Result> {
+    return new Promise((resolve) => {
+      this._jobs[generateID(5, Object.keys(this._jobs))] = {
+        state: 'waiting',
+
+        data: job,
+
+        callback: resolve
+      }
+    })
   }
 
   // Assign Jobs
@@ -76,11 +89,21 @@ class WorkerManager {
 
         if (job === undefined) break
 
-        const batch = this._batches[job.batchID]
+        let jobData!: Job_Data
+
+        if (job.batchID === undefined) {
+          this._jobs[job.jobID].state = 'inProgress'
+
+          jobData = this._jobs[job.jobID].data
+        } else {
+          const batch = this._batches[job.batchID]
+
+          batch.jobs[job.jobID].state = 'inProgress'
+
+          jobData = batch.jobs[job.jobID].data
+        } 
 
         worker.state = 'working'
-
-        batch.jobs[job.jobID].state = 'inProgress'
 
         this._sendMessage(workerID, {
           type: 'assignJob',
@@ -88,15 +111,19 @@ class WorkerManager {
           batchID: job.batchID,
 
           jobID: job.jobID,
-          jobData: batch.jobs[job.jobID].data
+          jobData
         })
       }
     }
   }
 
   // Get A Job
-  private _getJob (): undefined | { batchID: string, jobID: string } {
+  private _getJob (): undefined | { batchID?: string, jobID: string } {
     // Can't because I suck :(
+    
+    for (let jobID of Object.keys(this._jobs)) {
+      if (this._jobs[jobID].state === 'waiting') return { jobID }
+    }
 
     for (let batchID of Object.keys(this._batches)) {
       const batch = this._batches[batchID]
@@ -104,8 +131,6 @@ class WorkerManager {
       for (let jobID of Object.keys(batch.jobs)) {
         if (batch.jobs[jobID].state === 'waiting') return { batchID, jobID }
       }
-
-      break
     }
 
     return undefined
@@ -129,16 +154,26 @@ class WorkerManager {
         }
 
         else if (msg.type === 'jobFinished') {
-          const batch = this._batches[msg.batchID]
+          if (msg.batchID === undefined) {
+            const job = this._jobs[msg.jobID]
 
-          batch.results.push(msg.jobResult)
+            if (job.callback !== undefined) job.callback(msg.jobResult)
 
-          if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: batch.results.length })
+            delete this._jobs[msg.jobID]
+          } else {
+            const batch = this._batches[msg.batchID]
 
-          if (batch.results.length >= batch.totalJobs) {
-            batch.finishCallback(batch.results)
+            delete batch.jobs[msg.jobID]
 
-            delete this._batches[msg.batchID]
+            batch.results.push(msg.jobResult)
+
+            if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: batch.results.length })
+
+            if (batch.results.length >= batch.totalJobs) {
+              batch.finishCallback(batch.results)
+
+              delete this._batches[msg.batchID]
+            } 
           }
 
           worker.state = 'idle'
@@ -172,7 +207,10 @@ interface Batch {
 interface Job {
   state: 'waiting' | 'inProgress',
 
-  data: Job_Data
+  data: Job_Data,
+
+  callback?: (result: Job_Result) => any
+  // Only work for jobs that are not in a batch.
 }
 
 export { WorkerManager }

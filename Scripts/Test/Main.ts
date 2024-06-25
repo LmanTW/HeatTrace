@@ -10,8 +10,8 @@ async function start (): Promise<void> {
   const { HeatTrace } = await import('../../Assets/HeatTrace.js')
 
   const Engine = new HeatTrace({
-    width: 512 * 2.5,
-    height: 384 * 2.5, 
+    width: 512 * 1,
+    height: 384 * 1, 
 
     style: {
       traceSize: 1,

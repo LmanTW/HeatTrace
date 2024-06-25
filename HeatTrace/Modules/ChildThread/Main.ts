@@ -107,6 +107,7 @@ export default () => {
 
         batchID: msg.batchID,
 
+        jobID: msg.jobID,
         jobResult: result
       })
     } 
