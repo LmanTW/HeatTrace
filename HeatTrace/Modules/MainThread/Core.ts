@@ -118,7 +118,7 @@ export default class {
 
       // Render A Frame
       const renderFrame = async (): Promise<void> => {
-        if (currentFrame < end) {
+        if (currentFrame <= end) {
           let frame = currentFrame
 
           currentFrame++
@@ -134,8 +134,6 @@ export default class {
 
             layers: await renderLayers(this, frame)
           }).then((result) => {
-            console.log(true)
-
             result = result as Job_Result_RenderImage
 
             fs.writeFileSync(path.join(cachePath, 'Frames', `${frame.toString().padStart(5, '0')}.png`), new Uint8Array(result.data))

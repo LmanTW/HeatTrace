@@ -22,7 +22,8 @@ async function start (): Promise<void> {
       } 
     },
 
-    maxCursorTravelDistance: 2
+    maxCursorTravelDistance: 2,
+    maxFrameQueue: 5
   })
 
   await Engine.initialize((info) => console.log(info))
