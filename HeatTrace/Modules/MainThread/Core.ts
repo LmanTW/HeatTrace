@@ -108,49 +108,71 @@ export default class {
       if (!fs.existsSync(cachePath)) fs.mkdirSync(cachePath)
       if (!fs.existsSync(path.join(cachePath, 'Frames'))) fs.mkdirSync(path.join(cachePath, 'Frames')) 
 
-      if (progress !== undefined) progress({ type: 'renderingFrames', total: end - start, finished: 0 })
-  
-      for (let i = start; i < end; i++) {
-        if (progress !== undefined) progress({ type: 'renderingFrames', total: end - start, finished: i - start })
+      let currentFrame: number = start
+      let frameQueue: number = 0
 
-        const frame = i
+      let total = end - start
+      let finished: number = 0
 
-        this.WorkerManager.createJob({
-          type: 'renderImage',
+      if (progress !== undefined) progress({ type: 'renderingFrames', total, finished })
 
-          format: 'png',
+      // Render A Frame
+      const renderFrame = async (): Promise<void> => {
+        if (currentFrame < end) {
+          let frame = currentFrame
 
-          width: this._options.width,
-          height: this._options.height,
+          currentFrame++
+          frameQueue++ 
 
-          layers: await renderLayers(this, i)
-        }).then((result) => {
-          result = result as Job_Result_RenderImage
+          this.WorkerManager.createJob({
+            type: 'renderImage',
 
-          fs.writeFileSync(path.join(cachePath, 'Frames', `${i.toString().padStart(5, '0')}.png`), new Uint8Array(result.data))
+            format: 'png',
 
-          if (frame === end) {
-            if (progress !== undefined) progress({ type: 'encodingVideo', total: 0, finished: 0 })
+            width: this._options.width,
+            height: this._options.height,
 
-            ffmpeg(path.join(cachePath, 'Frames', '%05d.png'))
-              .setFfmpegPath(ffmpegPath!)
+            layers: await renderLayers(this, frame)
+          }).then((result) => {
+            console.log(true)
 
-              .output(path.join(cachePath, 'Result.mp4')) 
+            result = result as Job_Result_RenderImage
 
-              .inputFPS(this._options.videoFPS)
-              .outputOptions('-pix_fmt yuv420p')
-              .outputOptions(`-threads ${this._options.threads}`)
+            fs.writeFileSync(path.join(cachePath, 'Frames', `${frame.toString().padStart(5, '0')}.png`), new Uint8Array(result.data))
 
-              .once('end', () => {
-                if (progress !== undefined) progress({ type: 'encodingVideo', total: 0, finished: 0 })
+            frameQueue--
 
-                resolve(path.join(cachePath, 'Result.mp4'))
-              })
+            finished++
 
-              .run()
-          }
-        })
+            if (progress !== undefined) progress({ type: 'renderingFrames', total, finished })
+
+            if (frame === end) {
+              if (progress !== undefined) progress({ type: 'encodingVideo', total: 1, finished: 0 })
+
+              ffmpeg(path.join(cachePath, 'Frames', '%05d.png'))
+                .setFfmpegPath(ffmpegPath!)
+
+                .output(path.join(cachePath, 'Result.mp4')) 
+
+                .inputFPS(this._options.videoFPS)
+                .outputOptions('-pix_fmt yuv420p')
+                .outputOptions(`-threads ${this._options.threads}`)
+
+                .once('end', () => {
+                  if (progress !== undefined) progress({ type: 'encodingVideo', total: 1, finished: 1 })
+
+                  resolve(path.join(cachePath, 'Result.mp4'))
+                })
+
+                .run()
+            } else renderFrame()
+          })
+
+          if (frameQueue < this._options.maxFrameQueue) renderFrame()
+        }
       }
+
+      renderFrame()
     })
   }
 }

@@ -59,6 +59,7 @@ interface HeatTrace_Options {
     videoFPS: number;
     videoSpeed: number;
     threads: number;
+    maxFrameQueue: number;
     maxCursorTravelDistance: number;
 }
 interface HeatTrace_Options_Optional {
@@ -70,6 +71,7 @@ interface HeatTrace_Options_Optional {
     videoFPS?: number;
     videoSpeed?: number;
     threads?: number;
+    maxFrameQueue?: number;
     maxCursorTravelDistance?: number;
 }
 

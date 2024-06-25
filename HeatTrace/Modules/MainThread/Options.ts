@@ -61,6 +61,7 @@ function getCompleteOptions (options: HeatTrace_Options_Optional): HeatTrace_Opt
 
     threads: defaultValue(options.threads, os.cpus().length / 2),
 
+    maxFrameQueue: defaultValue(options.maxFrameQueue, 1),
     maxCursorTravelDistance: defaultValue(options.maxCursorTravelDistance, 200) 
   }
 }
@@ -88,6 +89,7 @@ function checkOptions (options: HeatTrace_Options): void {
 
     { name: 'options.threads', value: options.threads, min: 1 },
 
+    { name: 'options.maxFrameQueue', value: options.maxFrameQueue, min: 1 },
     { name: 'options.maxCursorTravelDistance', value: options.maxCursorTravelDistance, min: 0 }
   ])
 

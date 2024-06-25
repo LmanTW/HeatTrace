@@ -10,22 +10,19 @@ async function start (): Promise<void> {
   const { HeatTrace } = await import('../../Assets/HeatTrace.js')
 
   const Engine = new HeatTrace({
-    width: 512 * 1,
-    height: 384 * 1, 
+    width: 512 * 2,
+    height: 384 * 2,
 
     style: {
       traceSize: 1,
+      traceLength: 5,
 
       cursor: {
         type: 'color'
-      },
+      } 
+    },
 
-      background: {
-        type: 'image',
-
-        image: path.join(__dirname, 'Background.jpeg')
-      }
-    }
+    maxCursorTravelDistance: 2
   })
 
   await Engine.initialize((info) => console.log(info))

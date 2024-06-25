@@ -13,7 +13,8 @@ interface HeatTrace_Options {
 
   threads: number,
 
-  maxCursorTravelDistance: number // Pixels
+  maxFrameQueue: number,
+  maxCursorTravelDistance: number, // Pixels
 }
 
 // Optional HeatTrace Options 
@@ -31,6 +32,7 @@ interface HeatTrace_Options_Optional {
 
   threads?: number,
 
+  maxFrameQueue?: number,
   maxCursorTravelDistance?: number // Pixels
 }
 

@@ -9,6 +9,8 @@ class WorkerManager {
 
   // Start Workers
   public async startWorkers (amount: number, textures: { [key: string]: Texture }): Promise<void> {
+    const tasks: Promise<void>[] = []
+
     for (let i = 0; i < amount; i++) {
       const id = generateID(5, Object.keys(this._workers))
 
@@ -21,8 +23,10 @@ class WorkerManager {
         // You can check out API.ts if you're confused. And if you're still confused after that, I'm sorry.
       }
 
-      await this._handleWorker(id)
+      tasks.push(this._handleWorker(id))
     }
+
+    await Promise.all(tasks)
   }
 
   // Stop All The Workers
@@ -76,6 +80,8 @@ class WorkerManager {
 
         callback: resolve
       }
+
+      this._assignJobs()
     })
   }
 
