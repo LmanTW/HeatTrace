@@ -14,7 +14,8 @@ async function start (): Promise<void> {
     height: 384 * 3,
 
     style: {
-      traceSize: 1,
+      traceSize: 2,
+      traceLength: 5,
 
       cursor: {
         type: 'image',
