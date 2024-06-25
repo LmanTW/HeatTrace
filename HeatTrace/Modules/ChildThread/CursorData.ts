@@ -9,11 +9,13 @@ function getCursorData (playerName: string, replayHash: string, rawCursorData: R
 
   let length: number = 0
 
-  let cursorX: number = rawCursorData.xPositions[0]
-  let cursorY: number = rawCursorData.yPositions[0]
+  let cursorX: undefined | number = undefined 
+  let cursorY: undefined | number = undefined 
   
   rawCursorData.timeStamps.forEach((time, index) => {
     if (cursorX === undefined || cursorY === undefined) {
+      if ((rawCursorData.xPositions[index] < 0 || rawCursorData.xPositions[index] > 512) || (rawCursorData.yPositions[index] < 0 || rawCursorData.yPositions[index] > 384)) return
+
       cursorX = rawCursorData.xPositions[index]
       cursorY = rawCursorData.yPositions[index]
     } else {

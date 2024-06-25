@@ -6,7 +6,7 @@ export default class {
     
     const pixels = new Uint32Array(heatmap) 
 
-    const traceSize = Math.round(((width * height) / 1000000) * style.traceSize)
+    const traceSize = Math.round(((width + height) / 900) * style.traceSize)
 
     let cursorX = cursorData.xPositions[0]
     let cursorY = cursorData.yPositions[0]
@@ -27,17 +27,36 @@ export default class {
           Math.round(mapRange(cursorData.yPositions[i + 1], 0, 384, 0, height))
         ).forEach((pixel) => {
           if (traceSize > 1) {
-            for (let x = pixel.x - traceSize; x < pixel.x + traceSize; x++) {
-              for (let y = pixel.y - traceSize; y < pixel.y + traceSize; y++) {
-                if ((x >= 0 && x < width) && (y >= 0 && y < height)) {
-                  if (!changed.has(`${x},${y}`)) {
-                    Atomics.add(pixels, x + (y * width), 1)
+            if (traceSize % 2 === 0) {
+              const start = (traceSize / 2) - 1
+              const end = (traceSize / 2)
 
-                    changed.set(`${x},${y}`, true)
+              for (let x = pixel.x - start; x <= pixel.x + end; x++) {
+                for (let y = pixel.y - start; y <= pixel.y + end; y++) {
+                  if ((x >= 0 && x < width) && (y >= 0 && y < height)) {
+                    if (!changed.has(`${x},${y}`)) {
+                      Atomics.add(pixels, x + (y * width), 1)
+  
+                      changed.set(`${x},${y}`, true)
+                    }
                   }
                 }
               }
-            }
+            } else {
+              const radius = (traceSize - 1) / 2
+
+              for (let x = pixel.x - radius; x <= pixel.x + radius; x++) {
+                for (let y = pixel.y - radius; y <= pixel.y + radius; y++) {
+                  if ((x >= 0 && x < width) && (y >= 0 && y < height)) {
+                    if (!changed.has(`${x},${y}`)) {
+                      Atomics.add(pixels, x + (y * width), 1)
+  
+                      changed.set(`${x},${y}`, true)
+                    }
+                  }
+                }
+              }
+            } 
           } else {
             if ((pixel.x >= 0 && pixel.x < width) && (pixel.y >= 0 && pixel.y < height)) Atomics.add(pixels, pixel.x + (pixel.y * width), 1)
           }

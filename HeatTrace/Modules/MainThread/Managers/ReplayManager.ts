@@ -4,12 +4,19 @@ export default class {
 
   private _cursorsData: CursorData[] = []
 
+  private _frames: number = 0
+  private _frameInterval: number = 0
+
   constructor (Core: HeatTrace_Core) {
     this._Core = Core
   }
 
+  public get cursorsData () {return this._cursorsData}
+  public get frames () {return this._frames}
+  public get frameInterval () {return this._frameInterval}
+
   // Load Replays
-  public async loadReplays (replays: Buffer[], progress?: (info: { total: number, finished: number }) => any): Promise<{ error: boolean, message?: string, data?: { maxLength: number, loaded: number, failed: number }}> {
+  public async loadReplays (replays: Buffer[], progress?: (info: { total: number, finished: number }) => any): Promise<{ error: boolean, message?: string, data?: { loaded: number, failed: number }}> {
     if (this._Core.state !== 'initialized') throw new Error(`Cannot Load Replays: ${this._Core.state}`)
 
     const jobs: Job_Data[] = replays.map((replay) => {
@@ -27,6 +34,7 @@ export default class {
     let beatmapHash!: string
     let maxLength: number = 0
 
+    let loaded: number = 0
     let failed: number = 0
 
     const cursorsData: CursorData[] = []
@@ -42,21 +50,30 @@ export default class {
         if (length > maxLength) maxLength = length 
 
         cursorsData.push(result.data!.cursorData)
+
+        loaded++
       }
     }
 
     this._cursorsData = cursorsData
 
+    this._frameInterval = (1000 / this._Core.options.videoFPS) / this._Core.options.videoSpeed
+    this._frames = Math.round(maxLength / this._frameInterval)
+
     return {
       error: false,
 
       data: {
-        maxLength,
-
-        loaded: replays.length,
+        loaded,
         failed,
-      }}
-  } 
+      }
+    }
+  }
+
+  // Unload All Replays 
+  public unloadReplays (): void {
+    this._cursorsData = []
+  }
 }
 
 import { Job_Result_LoadReplay } from '../../../Types/Job_Result'

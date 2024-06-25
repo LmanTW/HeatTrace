@@ -6,6 +6,9 @@ export default class {
     this._Core = new HeatTrace_Core(options || {})
   }
 
+  public get state () {return this._Core.state}
+  public get options () {return this._Core.options}
+
   // Initialize HeatTrace
   public async initialize (progress?: (info: { type: 'loadingTextures' | 'startingWorkers' }) => any): Promise<{ error: boolean, message?: string }> {
     return await this._Core.initialize(progress)
@@ -22,8 +25,13 @@ export default class {
   }
 
   // Render An Image
-  public async renderImage (frame?: undefined | number, progress?: (info: { type: 'calculatingHeatmaps' | 'renderingImage', total: number, finished: number }) => any): Promise<any> {
+  public async renderImage (frame?: undefined | number, progress?: (info: { type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage', total: number, finished: number }) => any): Promise<any> {
     return await this._Core.renderImage(frame, progress)
+  }
+
+    // Render A Video
+  public async renderVideo (cachePath: string, start?: undefined | number, end?: undefined | number, progress?: (info: { total: number, finished: number }) => any): Promise<string> {
+    return await this._Core.renderVideo(cachePath, start, end, progress)
   }
 }
 

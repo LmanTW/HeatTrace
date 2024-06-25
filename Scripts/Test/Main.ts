@@ -10,8 +10,8 @@ async function start (): Promise<void> {
   const { HeatTrace } = await import('../../Assets/HeatTrace.js')
 
   const Engine = new HeatTrace({
-    width: 512 * 5,
-    height: 384 * 5, 
+    width: 512 * 1,
+    height: 384 * 1, 
 
     style: {
       traceSize: 1,
@@ -34,7 +34,9 @@ async function start (): Promise<void> {
 
   await Engine.loadReplays(replays, (info) => console.log('Load Replays', info))
 
-  fs.writeFileSync(path.join(__dirname, 'Result.png'), await Engine.renderImage(1000, (info) => console.log('Render Image', info)))
+  await Engine.renderVideo(path.join(__dirname, 'Cache'), undefined, undefined, (info) => console.log('Render Video', info))
+
+  // fs.writeFileSync(path.join(__dirname, 'Result.png'), await Engine.renderImage(undefined, (info) => console.log('Render Image', info)))
 
   await Engine.terminate()
 }

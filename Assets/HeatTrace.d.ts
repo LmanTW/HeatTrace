@@ -101,6 +101,8 @@ interface Replay {
 declare class export_default{
     private _Core;
     constructor(options?: HeatTrace_Options_Optional);
+    get state(): "none" | "initializing" | "initialized" | "terminating";
+    get options(): HeatTrace_Options;
     initialize(progress?: (info: {
         type: 'loadingTextures' | 'startingWorkers';
     }) => any): Promise<{
@@ -120,10 +122,14 @@ declare class export_default{
         };
     }>;
     renderImage(frame?: undefined | number, progress?: (info: {
-        type: 'calculatingHeatmaps' | 'renderingImage';
+        type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage';
         total: number;
         finished: number;
     }) => any): Promise<any>;
+    renderVideo(cachePath: string, start?: undefined | number, end?: undefined | number, progress?: (info: {
+        total: number;
+        finished: number;
+    }) => any): Promise<string>;
 }
 
 export { export_default as HeatTrace, type HeatTrace_Options, type HeatTrace_Options_Optional, type HeatTrace_Style, type HeatTrace_Style_Optional, type Replay, loadReplay };

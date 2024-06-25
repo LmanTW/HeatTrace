@@ -67,7 +67,7 @@ class TextureManager {
 
   // Unload All Textures
   public unloadTextures (): void {
-    Object.keys(this.textures).forEach((id) => delete this.textures[id])
+    this._textures = {}
   }
 }
 

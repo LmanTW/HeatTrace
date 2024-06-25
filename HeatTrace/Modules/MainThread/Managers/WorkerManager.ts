@@ -59,6 +59,8 @@ class WorkerManager {
 
         this._batches[generateID(5, Object.keys(this._batches))] = batch
 
+        if (batch.progressCallback !== undefined) batch.progressCallback({ total: batch.totalJobs, finished: 0 })
+
         this._assignJobs()
       } 
     })
