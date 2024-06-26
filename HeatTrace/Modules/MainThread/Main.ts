@@ -25,12 +25,12 @@ export default class {
   }
 
   // Render An Image
-  public async renderImage (frame?: undefined | number, progress?: (info: { type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage', total: number, finished: number }) => any): Promise<any> {
+  public async renderImage (frame?: undefined | number, progress?: (info: { type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage', total: number, finished: number }) => any): Promise<Uint8Array> {
     return await this._Core.renderImage(frame, progress)
   }
 
     // Render A Video
-  public async renderVideo (cachePath: string, start?: undefined | number, end?: undefined | number, progress?: (info: { total: number, finished: number }) => any): Promise<string> {
+  public async renderVideo (cachePath: string, start?: undefined | number, end?: undefined | number, progress?: (info: { type: 'renderingFrames' | 'encodingVideo', total: number, finished: number }) => any): Promise<string> {
     return await this._Core.renderVideo(cachePath, start, end, progress)
   }
 }

@@ -17,6 +17,7 @@ Download [HeatTrace.js](../Assets/HeatTrace.js) into your project.
   * [renderVideo()](#renderVideo)
 * [Types](#types)
   * [HeatTrace_Options](#heattrace_options)
+  * [HeatTrace_Options_Optional](#heattrace_options_optional)
 
 # HeatTrace
 ```ts
@@ -45,6 +46,33 @@ new HeaTrace(<options>) // Create a new HeatTrace instance.
 
 > `return Promise<void>`
 
+## loadReplays()
+```ts
+.loadReplays(<replays>, <progress>) // Load replays.
+```
+* `replays: Buffer[]` | The replays you want to load. (The raw buffer data of the file.)
+* `progress?: (info: { total: number, finished: number }) => any` | The progress callback function.
+
+> `return Promise<{ error: boolean, message?: string, data?: { loaded: number, failed: number }}>`
+
+## renderImage()
+```ts
+.renderImage(<frame>, <progress>) // Render an image.
+```
+* `frame?: undefined | number` | The frame to render. `Default: The Last Frame`
+* `progress?: (info: { type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage', total: number, finished: number }) => any` | The progress callback function.
+
+> `return Promise<Uint8Array>`
+
+## renderVideo()
+```ts
+.renderVideo(<cachePath>, <start>, <end>, <progress>) // Render a video.
+```
+* `cachePath: string` | The path of a directory to save video frames and the encoded video. 
+* `start?: undefined | number` | The start frame. `Default: 1` 
+* `end?: undefined | number` | The end frame. `Default: The Last Frame`
+* `progress?: (info: { type: 'renderingFrames' | 'encodingVideo', total: number, finished: number }) => any` | The progress callback function.
+
 # Types
 Types for HeatTrace.
 
@@ -72,3 +100,6 @@ Types for HeatTrace.
   // (This is to fix some weird data in the replay files, you can try changing this if the cursor data is weird.)
 }
 ```
+
+## HeatTrace_Options_Optional
+It's just [<HeatTrace_Options>](#heattrace_options) but everything is optional.
