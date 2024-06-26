@@ -80,6 +80,7 @@ export default class {
       type: 'renderImage',
       
       format: this._options.imageFormat,
+      quality: this._options.imageQuality,
 
       width: this._options.width,
       height: this._options.height,
@@ -128,6 +129,7 @@ export default class {
             type: 'renderImage',
 
             format: 'png',
+            quality: 1,
 
             width: this._options.width,
             height: this._options.height,

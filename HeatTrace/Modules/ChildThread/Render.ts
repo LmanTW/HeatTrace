@@ -119,7 +119,7 @@ class Render {
   }
 
   // Render The Image
-  public static async renderImage (format: 'png' | 'jpeg' | 'raw', width: number, height: number, layers: Layer[]): Promise<SharedArrayBuffer> {
+  public static async renderImage (format: 'png' | 'jpeg' | 'raw', quality: number, width: number, height: number, layers: Layer[]): Promise<SharedArrayBuffer> {
     return new Promise((resolve) => {
       const pixels = new Uint8Array(Math.round((width * height) * 4))
 
@@ -151,6 +151,8 @@ class Render {
       } else {
         new Jimp(width, height, (_, image) => {
           image.bitmap.data = Buffer.from(pixels)
+
+          image.quality(quality * 100)
 
           if (format === 'png') {
             image.getBuffer(Jimp.MIME_PNG, (_, data) => {

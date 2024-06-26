@@ -77,6 +77,7 @@ interface Job_Data_RenderImage {
   type: 'renderImage',
 
   format: 'png' | 'jpeg' | 'raw',
+  quality: number,
 
   width: number,
   height: number,

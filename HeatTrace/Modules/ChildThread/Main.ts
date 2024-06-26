@@ -104,7 +104,7 @@ export default () => {
         result = {
           type: 'renderImage',
 
-          data: await Render.renderImage(jobData.format, jobData.width, jobData.height, jobData.layers) 
+          data: await Render.renderImage(jobData.format, jobData.quality, jobData.width, jobData.height, jobData.layers)
         }
       }
 

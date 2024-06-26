@@ -9,8 +9,9 @@ The JavaScript / Typescript API of HeatTrace.
 
 2. Install the dependencies: `lzma-native`, `jimp`, `ffmpeg-static`, `fluent-ffmpeg`
 
-> [!NOTE]
-> `npm install lzma-native jimp ffmpeg-static fluent-ffmpeg`
+* NPM:`npm install lzma-native jimp ffmpeg-static fluent-ffmpeg`
+* Yarn: `yarn install lzma-native jimp ffmpeg-static fluent-ffmpeg`
+* Pnpm: `pnpm add lzma-native jimp ffmpeg-static fluent-ffmpeg`
 
 ## Contents
 * [HeatTrace](#heattrace)
