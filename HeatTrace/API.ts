@@ -7,7 +7,6 @@ import { loadReplay, Replay } from './Modules/ChildThread/Replay'
 import startWorker from './Modules/ChildThread/Main'
 import HeatTrace from './Modules/MainThread/Main'
 
-
 // This is the third iteration of the codebase.
 // I have rewritten it THREE TIMES because I suck.
 

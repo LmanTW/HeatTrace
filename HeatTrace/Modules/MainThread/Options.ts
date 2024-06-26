@@ -40,7 +40,9 @@ function getCompleteOptions (options: HeatTrace_Options_Optional): HeatTrace_Opt
           { r: 252, g: 191, b: 73 },
           { r: 234, g: 226, b: 183 }
         ]),
-        images: defaultValue(cursor.images, [])
+        images: defaultValue(cursor.images, []),
+
+        imageAlign: 'start'
       },
 
       background: {
