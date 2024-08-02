@@ -49,7 +49,9 @@ interface HeatTrace_Style_Optional {
     opacity?: number
 
     colors?: Color.RGB[],
-    images?: string[]
+    images?: string[],
+
+    imageAlign?: 'start' | 'center'
   },
 
   background?: {

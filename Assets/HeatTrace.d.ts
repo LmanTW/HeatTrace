@@ -20,6 +20,7 @@ interface HeatTrace_Style {
         opacity: number;
         colors: Color.RGB[];
         images: string[];
+        imageAlign: 'start' | 'center';
     };
     background: {
         type: 'none' | 'color' | 'image';
@@ -41,6 +42,7 @@ interface HeatTrace_Style_Optional {
         opacity?: number;
         colors?: Color.RGB[];
         images?: string[];
+        imageAlign?: 'start' | 'center';
     };
     background?: {
         type?: 'none' | 'color' | 'image';
@@ -127,8 +129,9 @@ declare class export_default{
         type: 'calculatingHeatmaps' | 'renderingLayers' | 'encodingImage';
         total: number;
         finished: number;
-    }) => any): Promise<any>;
+    }) => any): Promise<Uint8Array>;
     renderVideo(cachePath: string, start?: undefined | number, end?: undefined | number, progress?: (info: {
+        type: 'renderingFrames' | 'encodingVideo';
         total: number;
         finished: number;
     }) => any): Promise<string>;

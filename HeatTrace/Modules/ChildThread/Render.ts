@@ -95,8 +95,8 @@ class Render {
         const texture = textures[style.cursor.images[value]]
 
         if (style.cursor.imageAlign === 'center') {
-          x - texture.width / 2
-          y - texture.height / 2
+          x -= texture.width / 2
+          y -= texture.height / 2
         }
 
         this._drawTexture(
